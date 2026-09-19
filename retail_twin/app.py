@@ -18,6 +18,7 @@ import time as time_module
 
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import streamlit as st
 
 from data_utils import load_train
@@ -36,8 +37,10 @@ INK = "#22282B"
 
 st.markdown(f"""
 <style>
-    .stApp {{ background-color: #F7F6F2; }}
+    .stApp {{ background-color: #F7F6F2; color: {INK}; }}
     [data-testid="stSidebar"] {{ background-color: #FFFFFF; }}
+    .stApp p, .stApp label, .stApp span, .stApp li, .stApp td, .stApp th,
+    .stApp [data-testid="stMarkdownContainer"] {{ color: #22282B; }}
     h1, h2, h3 {{ color: {INK}; font-family: 'Georgia', serif; }}
     .metric-card {{
         background: white; border-radius: 10px; padding: 14px 18px;
@@ -45,7 +48,7 @@ st.markdown(f"""
     }}
     .status-pill {{
         display: inline-block; padding: 2px 10px; border-radius: 12px;
-        font-size: 0.8rem; font-weight: 600; color: white;
+        font-size: 0.8rem; font-weight: 600; color: {INK};
     }}
 
     /* --- Explicit widget colors so buttons / selectors stay readable
@@ -72,13 +75,13 @@ st.markdown(f"""
     .stButton > button[kind="primary"],
     .stButton > button[data-testid="stBaseButton-primary"] {{
         background-color: {ACCENT} !important;
-        color: #FFFFFF !important;
+        color: {INK} !important;
         border: none !important;
     }}
     .stButton > button[kind="primary"]:hover,
     .stButton > button[data-testid="stBaseButton-primary"]:hover {{
         background-color: #234f4e !important;
-        color: #FFFFFF !important;
+        color: {INK} !important;
     }}
     .stButton > button[kind="primary"] p,
     .stButton > button[data-testid="stBaseButton-primary"] p {{ color: inherit !important; }}
@@ -116,6 +119,17 @@ def get_model_bundle():
 def get_model_metrics():
     with open("models/metrics.json") as f:
         return json.load(f)
+
+
+@st.cache_data(show_spinner="Comparing demand surge intensities...")
+def run_cached_surge_sweep(_train_df, _bundle, pairs, service_level, base_lead_time,
+                            order_coverage_days, horizon_days, start_date_str, seed=42):
+    supplier = SupplierConfig(base_lead_time_days=base_lead_time, order_coverage_days=order_coverage_days)
+    start_date = pd.Timestamp(start_date_str)
+    return simulation.run_demand_surge_sweep(
+        _bundle, _train_df, pairs, supplier, start_date, horizon_days,
+        service_level_target=service_level, seed=seed,
+    )
 
 
 @st.cache_data(show_spinner="Running Digital Twin simulation...")
@@ -217,9 +231,26 @@ preset = {
     "Custom": (0, 0),
 }[scenario_name]
 
+def demand_surge_slider(default_pct: int) -> int:
+    """10–100% demand surge intensity; default keeps the previous 30% preset."""
+    return st.sidebar.slider(
+        "Demand surge (%)",
+        min_value=10,
+        max_value=100,
+        value=default_pct,
+        step=1,
+        help="Scales simulated demand relative to the baseline forecast "
+             "(10% = mild surge, 100% = demand doubles). Re-run the twin after changing this.",
+        key="demand_surge_pct",
+    )
+
 if scenario_name == "Custom":
     demand_pct = st.sidebar.slider("Demand change (%)", -50, 100, preset[0])
     lead_time_delta = st.sidebar.slider("Lead-time change (days)", -3, 10, preset[1])
+elif scenario_name in ("Demand Surge", "Combined Disruption"):
+    demand_pct = demand_surge_slider(preset[0])
+    lead_time_delta = preset[1]
+    st.sidebar.caption(f"Demand {demand_pct:+d}%, lead time {lead_time_delta:+d} days")
 else:
     demand_pct, lead_time_delta = preset
     st.sidebar.caption(f"Demand {demand_pct:+d}%, lead time {lead_time_delta:+d} days")
@@ -455,8 +486,10 @@ with tab2:
 # ---------------------------------------------------------------------------
 with tab3:
     st.subheader(f"Baseline vs Scenario: {scenario_config.name}")
+    demand_surge_shown = (scenario_config.demand_multiplier - 1.0) * 100
     st.caption(
-        f"Demand multiplier: {scenario_config.demand_multiplier:.2f}x | "
+        f"Demand surge: {demand_surge_shown:+.0f}% "
+        f"({scenario_config.demand_multiplier:.2f}x vs baseline forecast) | "
         f"Lead-time change: {scenario_config.lead_time_change_days:+d} days | "
         f"Target service level: {scenario_config.service_level_target*100:.0f}%"
     )
@@ -493,6 +526,54 @@ with tab3:
         "Scenario": _fmt_row(scn_agg),
     })
     st.dataframe(comp_table, width='stretch', hide_index=True)
+
+    st.markdown("#### Demand surge comparison")
+    st.caption(
+        "Same network, supplier policy, and demand forecast; only the demand shock changes "
+        "(+10%, +30%, +50%, +70%, +100%). Lead time is held at the baseline so this isolates "
+        "surge intensity. A table shows exact values; the charts show the trend."
+    )
+    sweep_df = run_cached_surge_sweep(
+        train_df, model_bundle, pairs, service_level_target,
+        base_lead_time, order_coverage_days, horizon_days, str(start_date.date()),
+    )
+    st.dataframe(
+        simulation.format_surge_comparison_table(sweep_df),
+        width='stretch',
+        hide_index=True,
+    )
+
+    titles = [
+        "Total demand", "Unmet demand", "Service level (%)",
+        "Stockouts", "Average inventory",
+    ]
+    y_cols = [
+        "total_demand", "unmet_demand", "service_level",
+        "stockouts", "average_inventory",
+    ]
+    fig_sweep = make_subplots(
+        rows=2, cols=3,
+        subplot_titles=titles,
+        vertical_spacing=0.18,
+        specs=[[{}, {}, {}], [{}, {}, None]],
+    )
+    x = sweep_df["demand_surge_pct"]
+    plot_specs = [
+        (1, 1, y_cols[0], ACCENT, False),
+        (1, 2, y_cols[1], ACCENT_BAD, False),
+        (1, 3, y_cols[2], ACCENT_GOOD, True),
+        (2, 1, y_cols[3], ACCENT_WARN, False),
+        (2, 2, y_cols[4], ACCENT, False),
+    ]
+    for row, col, ykey, color, is_pct in plot_specs:
+        y = sweep_df[ykey] * 100 if is_pct else sweep_df[ykey]
+        fig_sweep.add_trace(
+            go.Scatter(x=x, y=y, mode="lines+markers", line=dict(color=color), showlegend=False),
+            row=row, col=col,
+        )
+    fig_sweep.update_xaxes(title_text="Demand surge (%)", dtick=20)
+    fig_sweep.update_layout(height=520, margin=dict(t=40), plot_bgcolor="white")
+    st.plotly_chart(fig_sweep, width='stretch')
 
     st.markdown("#### Business Operational Health")
     hc1, hc2 = st.columns(2)

@@ -69,6 +69,7 @@ dashboard:
 | Page | What it is |
 |---|---|
 | **DSS Overview** | The fused NLP + twin Readiness Index (below). Also has "Open ..." buttons for each twin. |
+| **Manufacturing Twin** | The manufacturing twin's own full dashboard (`manufacturing_twin/dashboard_standalone.py`) |
 | **Healthcare Twin** | The healthcare twin's own full dashboard (`healthcare_twin/app.py`) |
 | **Retail Twin** | The retail twin's own full dashboard (`retail_twin/app.py`) |
 
@@ -98,13 +99,14 @@ missing, rather than failing partway through — so if a folder got moved or a
 file didn't copy, the dashboard's error banner will tell you precisely which
 file to restore and where.
 
-## Adding the manufacturing twin's dashboard
+## Adding another twin's dashboard
 
-Once its dashboard is final, put the files in `manufacturing_twin/`, then in
-`twin_embed.py` uncomment the `"manufacturing"` entry in `TWINS` (check that
-`entry` names the right script, currently `dashboard_standalone.py`). The
-navigation bar and the buttons on the overview page pick it up automatically.
-No other file needs to change.
+Put its files in a folder next to `dashboard.py`, then add one entry to the
+`TWINS` registry in `twin_embed.py` (folder name, entry script, label, icon).
+The navigation bar and the buttons on the overview page pick it up
+automatically. If the new twin uses a `st.session_state` key that another twin
+also uses for the same purpose (both retail and manufacturing use `"playing"`),
+add that key to `_SHARED_STATE_KEYS` in `twin_embed.py`.
 
 ## What you can safely add or swap later
 

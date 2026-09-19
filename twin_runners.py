@@ -236,6 +236,7 @@ def run_retail_twin(twin_dir, scenario_name: str = "Baseline", demand_pct: int =
             critical_df, health_base, health_scn,
         )
 
+        (twin_dir / "outputs").mkdir(exist_ok=True)
         dss_payload = simulation.export_dss_evidence(
             path=str(twin_dir / "outputs" / "dss_evidence.json"),
             model_metrics=model_metrics, baseline_agg=base_agg, scenario_agg=scn_agg,

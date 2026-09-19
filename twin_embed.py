@@ -12,14 +12,14 @@ inside a small sandbox that:
 
   1. puts that twin's folder on sys.path and makes it the working directory
      (the retail twin loads "models/demand_model.pkl" by relative path),
-  2. clears any same-named local modules left over from another twin
+  2. clears same-named modules cached from another twin
      (healthcare and retail both have a forecasting.py, for example) before
-     AND after the run, so twins never see each other's code,
+     the run, so twins never see each other's code,
   3. turns the twin's own st.set_page_config() call into a no-op, because the
      entry point (dashboard.py) already set the page config and Streamlit only
      allows one.
 
-To add a twin (e.g. manufacturing): add one entry to TWINS below. That is all.
+To add another twin: add one entry to TWINS below. That is all.
 """
 
 import os
@@ -36,6 +36,16 @@ HERE = Path(__file__).resolve().parent
 #   dir   : folder next to this file
 #   entry : that twin's own Streamlit script inside the folder
 TWINS = {
+    "manufacturing": {
+        "label": "Manufacturing Twin",
+        "icon": ":material/precision_manufacturing:",
+        "dir": "manufacturing_twin",
+        "entry": "dashboard_standalone.py",
+        "blurb": (
+            "Machine health monitoring: XGBoost failure prediction on a replayed "
+            "sensor stream, with health status, recommendation and DSS evidence packet."
+        ),
+    },
     "healthcare": {
         "label": "Healthcare Twin",
         "icon": ":material/local_hospital:",
@@ -56,18 +66,17 @@ TWINS = {
             "demand model, with supply-disruption scenarios and playback."
         ),
     },
-    # Uncomment once the manufacturing twin's dashboard is final:
-    # "manufacturing": {
-    #     "label": "Manufacturing Twin",
-    #     "icon": ":material/precision_manufacturing:",
-    #     "dir": "manufacturing_twin",
-    #     "entry": "dashboard_standalone.py",
-    #     "blurb": "Machine health monitoring with XGBoost failure prediction on a replayed sensor stream.",
-    # },
 }
 
 
 def _purge_foreign_modules(twin_dir: Path) -> None:
+    """
+    Drop cached modules that share a filename with one of this twin's modules
+    but were loaded from a DIFFERENT folder (e.g. healthcare's forecasting.py
+    when the retail twin is about to import its own). This twin's own modules
+    are left alone, so their classes stay the same objects across reruns
+    (st.cache_data pickles them by module name and needs that).
+    """
     root = os.path.normcase(os.path.abspath(twin_dir))
     for name in {p.stem for p in twin_dir.glob("*.py")}:
         mod = sys.modules.get(name)
@@ -94,6 +103,21 @@ def _twin_environment(twin_dir: Path):
             sys.path.remove(str(twin_dir))
 
 
+# Session-state keys that more than one twin app uses for the same purpose
+# (retail and manufacturing both keep a "playing" flag). Streamlit shares
+# st.session_state across pages, so without this, pressing Play in one twin
+# would leave the other twin auto-playing when you open it.
+_SHARED_STATE_KEYS = ("playing",)
+
+
+def _reset_shared_state_on_switch(key: str) -> None:
+    if st.session_state.get("_dss_active_twin") != key:
+        for k in _SHARED_STATE_KEYS:
+            if k in st.session_state:
+                del st.session_state[k]
+        st.session_state["_dss_active_twin"] = key
+
+
 def run_twin(key: str) -> None:
     """Run one twin's own dashboard inside the current Streamlit page."""
     spec = TWINS[key]
@@ -103,6 +127,7 @@ def run_twin(key: str) -> None:
         st.error(f"{spec['label']}: expected {entry} but it does not exist. "
                  f"Check the 'dir' / 'entry' values for '{key}' in twin_embed.TWINS.")
         return
+    _reset_shared_state_on_switch(key)
     with _twin_environment(twin_dir):
         runpy.run_path(str(entry), run_name="__main__")
 
