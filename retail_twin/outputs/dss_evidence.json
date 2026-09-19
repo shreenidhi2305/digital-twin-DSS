@@ -1,0 +1,231 @@
+{
+  "generated_at": "2026-09-19T04:00:26.033633Z",
+  "domain": "business",
+  "digital_twin": {
+    "type": "retail_demand_inventory",
+    "stores": 3,
+    "items": 10,
+    "simulation_horizon_days": 30
+  },
+  "data": {
+    "source": "Store Item Demand Forecasting dataset (train.csv/test.csv)",
+    "observed_variables": [
+      "date",
+      "store",
+      "item",
+      "sales"
+    ]
+  },
+  "model": {
+    "algorithm": "XGBoost",
+    "forecast_horizon_days": 30,
+    "metrics": {
+      "MAE": 5.9252,
+      "RMSE": 7.6695,
+      "sMAPE": 12.4752,
+      "validation_days": 90,
+      "n_train_rows": 854000,
+      "n_val_rows": 45000,
+      "train_date_range": [
+        "2013-01-29",
+        "2017-10-02"
+      ],
+      "val_date_range": [
+        "2017-10-03",
+        "2017-12-31"
+      ]
+    }
+  },
+  "baseline": {
+    "total_demand": 38139.0,
+    "fulfilled_demand": 38139.0,
+    "unmet_demand": 0.0,
+    "service_level": 1.0,
+    "stockout_events": 0,
+    "average_inventory": 466.0,
+    "min_inventory": 38.4,
+    "max_inventory": 1608.2,
+    "replenishment_orders": 60,
+    "n_store_items": 30,
+    "critical_store_items": 0
+  },
+  "scenario": {
+    "name": "Baseline",
+    "demand_multiplier": 1.0,
+    "lead_time_change_days": 0,
+    "service_level_target": 0.95,
+    "total_demand": 38139.0,
+    "fulfilled_demand": 38139.0,
+    "unmet_demand": 0.0,
+    "service_level": 1.0,
+    "stockout_events": 0,
+    "average_inventory": 466.0,
+    "min_inventory": 38.4,
+    "max_inventory": 1608.2,
+    "replenishment_orders": 60,
+    "n_store_items": 30,
+    "critical_store_items": 0
+  },
+  "impact": {
+    "service_level_change": 0.0,
+    "stockout_change": 0,
+    "unmet_demand_change": 0.0,
+    "inventory_change": 0.0,
+    "replenishment_orders_change": 0,
+    "critical_store_items_change": 0
+  },
+  "critical_entities": [
+    {
+      "store": 1,
+      "item": 1,
+      "risk_level": "LOW",
+      "risk_score": 0.0,
+      "stockout_rate": 0.0,
+      "unmet_demand": 0.0,
+      "service_level": 1.0,
+      "replenishment_orders": 2
+    },
+    {
+      "store": 1,
+      "item": 2,
+      "risk_level": "LOW",
+      "risk_score": 0.0,
+      "stockout_rate": 0.0,
+      "unmet_demand": 0.0,
+      "service_level": 1.0,
+      "replenishment_orders": 2
+    },
+    {
+      "store": 1,
+      "item": 3,
+      "risk_level": "LOW",
+      "risk_score": 0.0,
+      "stockout_rate": 0.0,
+      "unmet_demand": 0.0,
+      "service_level": 1.0,
+      "replenishment_orders": 2
+    },
+    {
+      "store": 1,
+      "item": 4,
+      "risk_level": "LOW",
+      "risk_score": 0.0,
+      "stockout_rate": 0.0,
+      "unmet_demand": 0.0,
+      "service_level": 1.0,
+      "replenishment_orders": 2
+    },
+    {
+      "store": 1,
+      "item": 5,
+      "risk_level": "LOW",
+      "risk_score": 0.0,
+      "stockout_rate": 0.0,
+      "unmet_demand": 0.0,
+      "service_level": 1.0,
+      "replenishment_orders": 2
+    },
+    {
+      "store": 1,
+      "item": 6,
+      "risk_level": "LOW",
+      "risk_score": 0.0,
+      "stockout_rate": 0.0,
+      "unmet_demand": 0.0,
+      "service_level": 1.0,
+      "replenishment_orders": 2
+    },
+    {
+      "store": 1,
+      "item": 7,
+      "risk_level": "LOW",
+      "risk_score": 0.0,
+      "stockout_rate": 0.0,
+      "unmet_demand": 0.0,
+      "service_level": 1.0,
+      "replenishment_orders": 2
+    },
+    {
+      "store": 1,
+      "item": 8,
+      "risk_level": "LOW",
+      "risk_score": 0.0,
+      "stockout_rate": 0.0,
+      "unmet_demand": 0.0,
+      "service_level": 1.0,
+      "replenishment_orders": 2
+    },
+    {
+      "store": 1,
+      "item": 9,
+      "risk_level": "LOW",
+      "risk_score": 0.0,
+      "stockout_rate": 0.0,
+      "unmet_demand": 0.0,
+      "service_level": 1.0,
+      "replenishment_orders": 2
+    },
+    {
+      "store": 1,
+      "item": 10,
+      "risk_level": "LOW",
+      "risk_score": 0.0,
+      "stockout_rate": 0.0,
+      "unmet_demand": 0.0,
+      "service_level": 1.0,
+      "replenishment_orders": 2
+    }
+  ],
+  "recommendations": [
+    {
+      "finding": "No material degradation detected between baseline and this scenario.",
+      "cause": "The current inventory policy appears robust to the configured demand/lead-time changes over this horizon.",
+      "recommendation": "No immediate action required; continue monitoring under live conditions.",
+      "expected_effect": "Stable service level and inventory levels expected to persist."
+    }
+  ],
+  "evidence": [
+    {
+      "finding": "Service level changed from baseline to scenario 'Baseline'",
+      "metric": "service_level",
+      "baseline_value": 1.0,
+      "scenario_value": 1.0,
+      "change": 0.0
+    },
+    {
+      "finding": "Stockout events changed from baseline to scenario 'Baseline'",
+      "metric": "stockout_events",
+      "baseline_value": 0,
+      "scenario_value": 0,
+      "change": 0
+    },
+    {
+      "finding": "Unmet demand changed from baseline to scenario 'Baseline'",
+      "metric": "unmet_demand",
+      "baseline_value": 0.0,
+      "scenario_value": 0.0,
+      "change": 0.0
+    },
+    {
+      "finding": "Average inventory changed from baseline to scenario 'Baseline'",
+      "metric": "average_inventory",
+      "baseline_value": 466.0,
+      "scenario_value": 466.0,
+      "change": 0.0
+    },
+    {
+      "finding": "Replenishment orders changed from baseline to scenario 'Baseline'",
+      "metric": "replenishment_orders",
+      "baseline_value": 60,
+      "scenario_value": 60,
+      "change": 0
+    }
+  ],
+  "dt_value_indicators": {
+    "predictive_capability": true,
+    "scenario_simulation": true,
+    "risk_detection": true,
+    "decision_support": true,
+    "operational_optimization": true
+  }
+}

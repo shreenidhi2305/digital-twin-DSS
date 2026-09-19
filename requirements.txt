@@ -1,0 +1,11 @@
+pandas>=2.0
+numpy>=1.24
+scikit-learn>=1.3
+xgboost>=2.0
+joblib>=1.3
+streamlit>=1.38
+
+# Only needed if you also want to run each twin's OWN standalone app
+# (manufacturing_twin/dashboard_standalone.py, retail_twin/app.py,
+# healthcare_twin/app.py) instead of / in addition to the unified dashboard.py:
+plotly>=5.18
