@@ -1,5 +1,9 @@
-# One theme for the whole app. The overview page and both twins style
-# themselves for a light background; without this, a viewer whose browser is in
-# dark mode would get dark-styled widgets on those light pages.
+# One theme for the whole app. Pages also inject ui_theme.CSS so charts
+# and custom chrome stay readable even if a viewer has dark-mode OS prefs.
 [theme]
 base = "light"
+primaryColor = "#1F6B6B"
+backgroundColor = "#F3F5F8"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#1B2430"
+font = "sans serif"

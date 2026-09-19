@@ -14,12 +14,19 @@ Pages:
 """
 
 import json
+import sys
 import time as time_module
+from pathlib import Path
 
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
+
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+import ui_theme
 
 from data_utils import load_train
 from forecasting import load_model_bundle
@@ -28,78 +35,13 @@ import simulation
 import recommendations as rec_engine
 
 st.set_page_config(page_title="Retail Digital Twin", page_icon="\U0001F4E6", layout="wide")
+ui_theme.inject()
 
-ACCENT = "#2E6F6E"        # deep teal -- inventory / operations
-ACCENT_WARN = "#C77B3B"   # warning amber-clay
-ACCENT_BAD = "#B5453A"    # stockout red
-ACCENT_GOOD = "#3E8E5C"   # healthy green
-INK = "#22282B"
-
-st.markdown(f"""
-<style>
-    .stApp {{ background-color: #F7F6F2; color: {INK}; }}
-    [data-testid="stSidebar"] {{ background-color: #FFFFFF; }}
-    .stApp p, .stApp label, .stApp span, .stApp li, .stApp td, .stApp th,
-    .stApp [data-testid="stMarkdownContainer"] {{ color: #22282B; }}
-    h1, h2, h3 {{ color: {INK}; font-family: 'Georgia', serif; }}
-    .metric-card {{
-        background: white; border-radius: 10px; padding: 14px 18px;
-        border: 1px solid #E4E1D8; box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-    }}
-    .status-pill {{
-        display: inline-block; padding: 2px 10px; border-radius: 12px;
-        font-size: 0.8rem; font-weight: 600; color: {INK};
-    }}
-
-    /* --- Explicit widget colors so buttons / selectors stay readable
-       regardless of the viewer's light/dark Streamlit theme setting --- */
-
-    /* Widget labels ("Simulate", "Scenario type", etc.) */
-    [data-testid="stWidgetLabel"] p, .stSidebar label, .stSidebar span {{
-        color: {INK} !important;
-    }}
-
-    /* Regular buttons (Reset / Next Day / Play / Generate JSON) */
-    .stButton > button, .stDownloadButton > button {{
-        background-color: #FFFFFF !important;
-        color: {INK} !important;
-        border: 1px solid #C9C5B8 !important;
-    }}
-    .stButton > button:hover, .stDownloadButton > button:hover {{
-        color: {ACCENT} !important;
-        border-color: {ACCENT} !important;
-    }}
-    .stButton > button p, .stDownloadButton > button p {{ color: inherit !important; }}
-
-    /* Primary button (RUN DIGITAL TWIN SIMULATION) */
-    .stButton > button[kind="primary"],
-    .stButton > button[data-testid="stBaseButton-primary"] {{
-        background-color: {ACCENT} !important;
-        color: {INK} !important;
-        border: none !important;
-    }}
-    .stButton > button[kind="primary"]:hover,
-    .stButton > button[data-testid="stBaseButton-primary"]:hover {{
-        background-color: #234f4e !important;
-        color: {INK} !important;
-    }}
-    .stButton > button[kind="primary"] p,
-    .stButton > button[data-testid="stBaseButton-primary"] p {{ color: inherit !important; }}
-
-    /* Selectbox / multiselect / radio (scenario type, store, item pickers) */
-    div[data-baseweb="select"] > div {{
-        background-color: #FFFFFF !important;
-        color: {INK} !important;
-        border-color: #C9C5B8 !important;
-    }}
-    div[data-baseweb="select"] * {{ color: {INK} !important; }}
-    /* Dropdown menu popover when a selectbox is open */
-    ul[data-baseweb="menu"], ul[data-baseweb="menu"] li {{
-        background-color: #FFFFFF !important;
-        color: {INK} !important;
-    }}
-</style>
-""", unsafe_allow_html=True)
+ACCENT = ui_theme.ACCENT
+ACCENT_WARN = ui_theme.WARN
+ACCENT_BAD = ui_theme.BAD
+ACCENT_GOOD = ui_theme.GOOD
+INK = ui_theme.INK
 
 
 # ---------------------------------------------------------------------------
@@ -188,7 +130,8 @@ all_items = sorted(train_df.item.unique().tolist())
 last_train_date = train_df.date.max()
 start_date = last_train_date + pd.Timedelta(days=1)
 
-st.sidebar.title("\U0001F4E6 Digital Twin Controls")
+st.sidebar.markdown('<div class="eyebrow">Decision Support Console</div>', unsafe_allow_html=True)
+st.sidebar.title("Retail Twin")
 
 st.sidebar.subheader("Network scope")
 network_mode = st.sidebar.radio(
@@ -313,6 +256,10 @@ recs = rec_engine.build_recommendations(
     base_agg, scn_agg, comparison, scenario_config, critical_df, health_base, health_scn,
 )
 
+st.markdown(
+    '<div class="eyebrow">FYP · AI-Based DSS for Digital Twin-Driven Transformation</div>',
+    unsafe_allow_html=True,
+)
 st.title("Retail Demand & Inventory Digital Twin")
 st.caption(
     "A virtual representation of a retail operation whose state evolves according to "
@@ -393,15 +340,14 @@ with tab1:
                               line=dict(color=ACCENT_WARN)))
     fig.add_trace(go.Scatter(x=net_daily.date, y=net_daily.inventory, name="Total inventory (units on hand)",
                               line=dict(color=ACCENT), yaxis="y2"))
+    ui_theme.style_plotly(fig, 380)
     fig.update_layout(
         yaxis=dict(title=dict(text="Demand (units/day)", font=dict(color=ACCENT_WARN)),
                     tickfont=dict(color=ACCENT_WARN)),
         yaxis2=dict(title=dict(text="Inventory (units on hand)", font=dict(color=ACCENT)),
                      tickfont=dict(color=ACCENT), overlaying="y", side="right"),
-        legend=dict(orientation="h", y=1.15), height=380, margin=dict(t=30),
-        plot_bgcolor="white",
     )
-    st.plotly_chart(fig, width='stretch')
+    st.plotly_chart(fig, use_container_width=True, theme=None)
 
     with st.expander("Data audit (train.csv / test.csv)"):
         st.write(f"Train range: **{train_df.date.min().date()} to {train_df.date.max().date()}** "
@@ -451,28 +397,31 @@ with tab2:
             st.error(f"\u26A0\uFE0F Stockout on {pd.Timestamp(current.date).date()}: "
                      f"{current.unmet_demand:.0f} units unmet demand.")
 
-        visible = pair_steps.iloc[:day_idx + 1]
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=visible.date, y=visible.inventory, name="Inventory", line=dict(color=ACCENT)))
-        fig.add_trace(go.Scatter(x=visible.date, y=visible.reorder_point, name="Reorder point",
-                                  line=dict(color=ACCENT_WARN, dash="dash")))
-        fig.add_trace(go.Scatter(x=visible.date, y=visible.safety_stock, name="Safety stock",
-                                  line=dict(color=ACCENT_BAD, dash="dot")))
-        fig.add_trace(go.Bar(x=visible.date, y=visible.actual_demand, name="Simulated demand",
-                              marker_color="rgba(46,111,110,0.25)", yaxis="y2"))
-        fig.update_layout(
-            yaxis=dict(title="Inventory (units)"), yaxis2=dict(title="Demand", overlaying="y", side="right"),
-            legend=dict(orientation="h", y=1.15), height=400, margin=dict(t=30), plot_bgcolor="white",
-        )
-        st.plotly_chart(fig, width='stretch')
-
-        st.markdown("##### Digital Twin event log — Store {} / Item {}".format(sel_store, sel_item))
-        pair_events = scn_events[(scn_events.store == sel_store) & (scn_events.item == sel_item) & (scn_events.day <= day_idx + 1)]
-        if len(pair_events):
-            for _, ev in pair_events.sort_values("day", ascending=False).head(15).iterrows():
-                st.text(f"Day {ev.day:>3} | {ev.event_type:<18} | {ev.message}")
-        else:
-            st.caption("No events yet.")
+        vis_l, vis_r = st.columns([1.7, 1], gap="large")
+        with vis_l:
+            visible = pair_steps.iloc[:day_idx + 1]
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=visible.date, y=visible.inventory, name="Inventory", line=dict(color=ACCENT)))
+            fig.add_trace(go.Scatter(x=visible.date, y=visible.reorder_point, name="Reorder point",
+                                      line=dict(color=ACCENT_WARN, dash="dash")))
+            fig.add_trace(go.Scatter(x=visible.date, y=visible.safety_stock, name="Safety stock",
+                                      line=dict(color=ACCENT_BAD, dash="dot")))
+            fig.add_trace(go.Bar(x=visible.date, y=visible.actual_demand, name="Simulated demand",
+                                  marker_color="rgba(31,107,107,0.22)", yaxis="y2"))
+            ui_theme.style_plotly(fig, 400)
+            fig.update_layout(
+                yaxis=dict(title="Inventory (units)"),
+                yaxis2=dict(title="Demand", overlaying="y", side="right"),
+            )
+            st.plotly_chart(fig, use_container_width=True, theme=None)
+        with vis_r:
+            st.markdown("##### Event log")
+            pair_events = scn_events[(scn_events.store == sel_store) & (scn_events.item == sel_item) & (scn_events.day <= day_idx + 1)]
+            if len(pair_events):
+                log_df = pair_events.sort_values("day", ascending=False).head(15)[["day", "event_type", "message"]]
+                st.dataframe(log_df, hide_index=True, width="stretch", height=400)
+            else:
+                st.caption("No events yet.")
 
         if st.session_state.get("playing") and day_idx < n_days - 1:
             time_module.sleep(0.4)
@@ -572,8 +521,9 @@ with tab3:
             row=row, col=col,
         )
     fig_sweep.update_xaxes(title_text="Demand surge (%)", dtick=20)
-    fig_sweep.update_layout(height=520, margin=dict(t=40), plot_bgcolor="white")
-    st.plotly_chart(fig_sweep, width='stretch')
+    ui_theme.style_plotly(fig_sweep, 520)
+    fig_sweep.update_layout(margin=dict(t=48))
+    st.plotly_chart(fig_sweep, use_container_width=True, theme=None)
 
     st.markdown("#### Business Operational Health")
     hc1, hc2 = st.columns(2)

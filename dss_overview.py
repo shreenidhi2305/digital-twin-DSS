@@ -28,6 +28,7 @@ dss_engine.py / evidence_schema.py, not here.
 from pathlib import Path
 
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
 from evidence_schema import (
@@ -39,6 +40,8 @@ from evidence_schema import (
 from dss_engine import load_nlp_evidence, compute_readiness_index, readiness_to_dict
 from twin_runners import run_manufacturing_twin, run_healthcare_twin, run_retail_twin
 from twin_embed import TWINS
+import ui_theme
+from ui_theme import pill, prov_tag, show_plotly, STATUS_COLORS, ACCENT, NAVY, GOOD, WARN, BAD
 
 HERE = Path(__file__).parent
 ASPECTS_CSV = HERE / "master_nlp_aspects.csv"
@@ -54,18 +57,10 @@ SECTOR_LABELS = {
     "business": "Business / Retail",
 }
 
-STATUS_COLORS = {
-    "Healthy": "#3E8E5C", "Warning": "#C77B3B", "Critical": "#B5453A",
-    "Ready": "#3E8E5C", "Developing": "#C77B3B", "At Risk": "#B5453A",
-}
-
-PROVENANCE_COLORS = {
-    "OBSERVED": "#2E6F6E",
-    "ASSUMED": "#8A7DAE",
-    "CALIBRATED": "#4C7CB0",
-    "SIMULATED": "#C77B3B",
-    "PREDICTED": "#B5453A",
-    "DSS_DERIVED": "#22282B",
+SECTOR_COLORS = {
+    "manufacturing": ACCENT,
+    "healthcare": NAVY,
+    "business": WARN,
 }
 
 
@@ -108,43 +103,15 @@ def build_all_results(twin_dirs: dict = TWIN_DIRS, aspects_csv: Path = ASPECTS_C
 # ---------------------------------------------------------------------------
 # Streamlit UI
 # ---------------------------------------------------------------------------
-st.markdown("""
-<style>
-    .stApp { background-color: #F7F6F2; }
-    h1, h2, h3 { font-family: 'Georgia', serif; color: #22282B; }
-    .status-pill {
-        display: inline-block; padding: 3px 12px; border-radius: 12px;
-        font-size: 0.85rem; font-weight: 600; color: white;
-    }
-    .prov-tag {
-        display: inline-block; padding: 1px 8px; border-radius: 8px;
-        font-size: 0.7rem; font-weight: 600; color: white; margin-right: 4px;
-    }
-    .metric-card {
-        background: white; border-radius: 10px; padding: 16px 20px;
-        border: 1px solid #E4E1D8; box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-    }
-</style>
-""", unsafe_allow_html=True)
-
-
-def pill(label, color_map):
-    color = color_map.get(label, "#888")
-    return f'<span class="status-pill" style="background:{color}">{label}</span>'
-
-
-def prov_tag(label):
-    color = PROVENANCE_COLORS.get(label, "#888")
-    return f'<span class="prov-tag" style="background:{color}">{label}</span>'
-
+ui_theme.inject()
 
 SCORE_PROVENANCE_LABELS = {
     "twin": "TWIN-COMPUTED",
     "dss_derived": "DSS_DERIVED",
 }
 SCORE_PROVENANCE_COLORS = {
-    "twin": "#2E6F6E",
-    "dss_derived": PROVENANCE_COLORS["DSS_DERIVED"],
+    "twin": ACCENT,
+    "dss_derived": ui_theme.INK,
 }
 
 
@@ -158,8 +125,8 @@ def score_prov_tag(value):
     (or vice versa).
     """
     label = SCORE_PROVENANCE_LABELS.get(value, value.upper())
-    color = SCORE_PROVENANCE_COLORS.get(value, "#888")
-    return f'<span class="prov-tag" style="background:{color}">{label}</span>'
+    color = SCORE_PROVENANCE_COLORS.get(value, ui_theme.MUTED)
+    return prov_tag(label, {label: color})
 
 
 @st.cache_resource(show_spinner="Running all three Digital Twins and fusing with NLP evidence...")
@@ -167,20 +134,54 @@ def get_results():
     return build_all_results()
 
 
-st.title("\U0001F9ED AI-Based Intelligent Decision Support System")
+st.markdown(
+    '<div class="eyebrow">FYP · AI-Based DSS for Digital Twin-Driven Transformation</div>',
+    unsafe_allow_html=True,
+)
+st.title("AI-Based Intelligent Decision Support System")
 st.caption(
-    "Digital Twin-Driven Digital Transformation — unified view across Healthcare, "
-    "Manufacturing and Business. Every number below is traceable: see the "
-    "provenance legend."
+    "Unified view across Healthcare, Manufacturing and Business. "
+    "Every number below is traceable — see the provenance legend."
 )
 
-# ---------------------------------------------------------------------------
-# Open an individual twin's own dashboard. Placed above the (slow, first-run)
-# computation below so the buttons are usable while the results load.
-# ---------------------------------------------------------------------------
+brief_l, brief_r = st.columns(2)
+with brief_l:
+    st.markdown(
+        """
+        <div class="brief-card">
+        <h3>Abstract</h3>
+        <p>This project implements an AI-based decision support system that fuses
+        literature and news sentiment (NLP) with live digital-twin evidence from
+        three domains. Each twin turns operational data into a compact, provenance-tagged
+        evidence packet. The fusion layer then produces an explainable
+        <b>Digital Twin Readiness Index</b> per sector — so a decision maker can see
+        both the technology-context signal and the current operational signal,
+        and why the combined score is what it is.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+with brief_r:
+    st.markdown(
+        """
+        <div class="brief-card">
+        <h3>Objectives</h3>
+        <ol>
+          <li>Prototype healthcare, manufacturing and retail digital twins that emit
+              decision-ready evidence rather than raw telemetry.</li>
+          <li>Aggregate aspect-level NLP sentiment as a macro readiness context signal.</li>
+          <li>Fuse NLP + twin evidence into one explainable readiness index per sector.</li>
+          <li>Present a single dashboard where scores, graphs and provenance stay readable
+              and internally consistent.</li>
+        </ol>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 _twin_pages = st.session_state.get("_dss_twin_pages", {})
 if _twin_pages:
-    st.subheader("Digital Twin dashboards")
+    st.subheader("Domain digital twins")
     _cols = st.columns(len(_twin_pages))
     for _col, (_key, _page) in zip(_cols, _twin_pages.items()):
         with _col:
@@ -190,10 +191,6 @@ if _twin_pages:
                 st.page_link(_page, label=f"Open {TWINS[_key]['label']}",
                              icon=":material/arrow_forward:")
 
-# Provenance legend, matching the healthcare twin's own "Observed / Assumed /
-# Calibrated-Derived / Simulated" legend convention, extended with the two
-# tags this fusion layer adds (PREDICTED for trained-model output, DSS_DERIVED
-# for anything computed only here).
 st.markdown(
     "**Provenance:** " + " ".join(prov_tag(p) for p in PROVENANCE_LEVELS),
     unsafe_allow_html=True,
@@ -201,12 +198,12 @@ st.markdown(
 st.caption(
     "OBSERVED = raw sensor/dataset value · ASSUMED = a modelling input the twin's "
     "author chose · CALIBRATED = derived from observed data by a documented formula · "
-    "SIMULATED = produced by running a twin's state-transition logic forward, does not "
-    "exist in source data · PREDICTED = output of a trained ML model · "
-    "DSS_DERIVED = computed only by this fusion layer, not claimed by any twin."
+    "SIMULATED = produced by running a twin's state-transition logic forward · "
+    "PREDICTED = output of a trained ML model · "
+    "DSS_DERIVED = computed only by this fusion layer."
 )
 
-if st.button("\U0001F504 Re-run all twins"):
+if st.button("Re-run all twins"):
     get_results.clear()
 
 results, errors = get_results()
@@ -215,28 +212,63 @@ if errors:
     for sector, msg in errors.items():
         st.error(f"**{SECTOR_LABELS.get(sector, sector)}** failed to run: {msg}")
 
-st.markdown("---")
-st.header("Overview — Digital Twin Readiness Index")
+st.header("Digital Twin Readiness Index")
 
 if results:
-    cols = st.columns(len(results))
-    for col, (sector, result) in zip(cols, results.items()):
+    card_cols = st.columns(len(results))
+    for col, (sector, result) in zip(card_cols, results.items()):
         with col:
-            st.markdown(f"#### {SECTOR_LABELS[sector]}")
             st.markdown(
                 f'<div class="metric-card">'
-                f'<div style="font-size:2.2rem; font-weight:700;">{result.readiness_index}</div>'
+                f'<div class="readiness-label">{SECTOR_LABELS[sector]}</div>'
+                f'<div class="readiness-score">{result.readiness_index}</div>'
                 f'{pill(result.status, STATUS_COLORS)}'
-                f'<div style="margin-top:8px; font-size:0.85rem; color:#555;">'
-                f'Twin: {pill(result.twin_evidence["status"], STATUS_COLORS)}</div>'
-                f'</div>',
+                f'<div style="margin-top:10px;font-size:0.85rem;color:#5C6B7A;">'
+                f'Twin {pill(result.twin_evidence["status"], STATUS_COLORS)}'
+                f'</div></div>',
                 unsafe_allow_html=True,
             )
+
+    chart_l, chart_r = st.columns([1.35, 1])
+    with chart_l:
+        fig = go.Figure()
+        sectors = list(results.keys())
+        fig.add_trace(go.Bar(
+            name="Readiness index",
+            x=[SECTOR_LABELS[s] for s in sectors],
+            y=[results[s].readiness_index for s in sectors],
+            marker_color=[SECTOR_COLORS[s] for s in sectors],
+            text=[f"{results[s].readiness_index:.1f}" for s in sectors],
+            textposition="outside",
+        ))
+        fig.add_hline(y=75, line_dash="dot", line_color=GOOD,
+                      annotation_text="Ready ≥ 75", annotation_font_color=GOOD)
+        fig.add_hline(y=50, line_dash="dot", line_color=WARN,
+                      annotation_text="Developing ≥ 50", annotation_font_color=WARN)
+        fig.update_yaxes(range=[0, 110], title="Score (0–100)")
+        fig.update_layout(showlegend=False, title="Readiness by sector")
+        show_plotly(fig, height=340)
+    with chart_r:
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            name="NLP component (35%)",
+            x=[SECTOR_LABELS[s] for s in results],
+            y=[results[s].nlp_component for s in results],
+            marker_color=NAVY,
+        ))
+        fig.add_trace(go.Bar(
+            name="Twin component (65%)",
+            x=[SECTOR_LABELS[s] for s in results],
+            y=[results[s].twin_component for s in results],
+            marker_color=ACCENT,
+        ))
+        fig.update_layout(barmode="group", title="Fusion components",
+                          yaxis_title="Score (0–100)", yaxis_range=[0, 110])
+        show_plotly(fig, height=340)
 else:
     st.warning("No sector results available — check the errors above and your TWIN_DIRS paths.")
 
-st.markdown("---")
-st.header("Sector Detail")
+st.header("Sector detail")
 
 if results:
     sector = st.selectbox(
@@ -246,7 +278,7 @@ if results:
     result = results[sector]
     d = readiness_to_dict(result)
 
-    left, right = st.columns([1, 1])
+    left, right = st.columns([1, 1.15], gap="large")
 
     with left:
         st.subheader("Readiness fusion")
@@ -256,11 +288,23 @@ if results:
             f'{prov_tag(d["provenance"]["readiness_index"])}',
             unsafe_allow_html=True,
         )
-        st.markdown(f"- NLP component: **{d['nlp_component']}** "
+        st.markdown(f"- NLP component: **{d['nlp_component']:.1f}** "
                     f"{prov_tag(d['provenance']['nlp_component'])}", unsafe_allow_html=True)
-        st.markdown(f"- Twin component: **{d['twin_component']}** "
+        st.markdown(f"- Twin component: **{d['twin_component']:.1f}** "
                     f"{score_prov_tag(d['provenance']['twin_component'])}",
                     unsafe_allow_html=True)
+
+        fuse_fig = go.Figure(go.Bar(
+            x=["NLP", "Twin", "Readiness"],
+            y=[d["nlp_component"], d["twin_component"], d["readiness_index"]],
+            marker_color=[NAVY, ACCENT, SECTOR_COLORS[sector]],
+            text=[f"{d['nlp_component']:.1f}", f"{d['twin_component']:.1f}",
+                  f"{d['readiness_index']:.1f}"],
+            textposition="outside",
+        ))
+        fuse_fig.update_yaxes(range=[0, 110], title="Score")
+        fuse_fig.update_layout(showlegend=False)
+        show_plotly(fuse_fig, height=280)
 
         st.subheader("Why this score")
         for line in d["explanation"]:
@@ -276,8 +320,20 @@ if results:
             for k, v in nlp["aspect_means"].items() if v is not None
         ])
         if not aspect_df.empty:
-            st.bar_chart(aspect_df.set_index("Aspect")["Mean sentiment"])
-            st.dataframe(aspect_df, hide_index=True, width='stretch')
+            bar_colors = [GOOD if v >= 0 else BAD for v in aspect_df["Mean sentiment"]]
+            nlp_fig = go.Figure(go.Bar(
+                x=aspect_df["Mean sentiment"],
+                y=aspect_df["Aspect"],
+                orientation="h",
+                marker_color=bar_colors,
+                text=[f"{v:+.2f}" for v in aspect_df["Mean sentiment"]],
+                textposition="outside",
+            ))
+            nlp_fig.update_xaxes(range=[-1.05, 1.05], title="Mean VADER sentiment")
+            nlp_fig.add_vline(x=0, line_color=ui_theme.LINE)
+            nlp_fig.update_layout(showlegend=False)
+            show_plotly(nlp_fig, height=300)
+            st.dataframe(aspect_df, hide_index=True, width="stretch")
         else:
             st.info("No aspect-sentiment data available for this sector.")
 
@@ -297,18 +353,15 @@ if results:
     for key, value in twin["key_metrics"].items():
         prov = twin["provenance"].get(key, "—")
         metrics_rows.append({"Metric": key, "Value": str(value), "Provenance": prov})
-    st.dataframe(pd.DataFrame(metrics_rows), hide_index=True, width='stretch')
+    st.dataframe(pd.DataFrame(metrics_rows), hide_index=True, width="stretch")
 
     with st.expander("Raw twin evidence (untouched, as produced by the twin itself)"):
         st.json(twin["raw_evidence"])
 
-st.markdown("---")
 st.caption(
     "This dashboard fuses NLP-derived literature/news sentiment (macro signal) with "
     "each domain's live twin simulation (operational signal) into one explainable "
-    "readiness score per sector — see dss_engine.py for the weighting and its "
-    "justification. No twin's own no-composite-score design decision is overridden: "
-    "any score not already produced by a twin is explicitly tagged DSS_DERIVED above. "
-    "None of the twins here run against a live production system — see each twin's "
-    "own README for what is/isn't claimed."
+    "readiness score per sector. Twin-owned scores stay tagged as twin-computed; "
+    "anything invented only here is tagged DSS_DERIVED. None of the twins run "
+    "against a live production system."
 )
