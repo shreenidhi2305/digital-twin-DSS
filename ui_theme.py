@@ -305,4 +305,4 @@ def style_plotly(fig, height: int = 360, time_axis: bool = False):
 def show_plotly(fig, height: int = 360, time_axis: bool = False) -> None:
     import streamlit as st
     style_plotly(fig, height=height, time_axis=time_axis)
-    st.plotly_chart(fig, use_container_width=True, theme=None)
+    st.plotly_chart(fig, width="stretch", theme=None)

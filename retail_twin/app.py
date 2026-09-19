@@ -347,7 +347,7 @@ with tab1:
         yaxis2=dict(title=dict(text="Inventory (units on hand)", font=dict(color=ACCENT)),
                      tickfont=dict(color=ACCENT), overlaying="y", side="right"),
     )
-    st.plotly_chart(fig, use_container_width=True, theme=None)
+    st.plotly_chart(fig, width="stretch", theme=None)
 
     with st.expander("Data audit (train.csv / test.csv)"):
         st.write(f"Train range: **{train_df.date.min().date()} to {train_df.date.max().date()}** "
@@ -413,7 +413,7 @@ with tab2:
                 yaxis=dict(title="Inventory (units)"),
                 yaxis2=dict(title="Demand", overlaying="y", side="right"),
             )
-            st.plotly_chart(fig, use_container_width=True, theme=None)
+            st.plotly_chart(fig, width="stretch", theme=None)
         with vis_r:
             st.markdown("##### Event log")
             pair_events = scn_events[(scn_events.store == sel_store) & (scn_events.item == sel_item) & (scn_events.day <= day_idx + 1)]
@@ -523,7 +523,7 @@ with tab3:
     fig_sweep.update_xaxes(title_text="Demand surge (%)", dtick=20)
     ui_theme.style_plotly(fig_sweep, 520)
     fig_sweep.update_layout(margin=dict(t=48))
-    st.plotly_chart(fig_sweep, use_container_width=True, theme=None)
+    st.plotly_chart(fig_sweep, width="stretch", theme=None)
 
     st.markdown("#### Business Operational Health")
     hc1, hc2 = st.columns(2)

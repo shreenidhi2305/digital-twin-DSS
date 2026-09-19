@@ -192,7 +192,7 @@ def render_chart(fig, height, time_axis=False):
     light styling above (that re-theming is what caused light-on-light
     text when the app's Streamlit theme was dark)."""
     styled_fig_layout(fig, height, time_axis=time_axis)
-    st.plotly_chart(fig, use_container_width=True, theme=None)
+    st.plotly_chart(fig, width="stretch", theme=None)
 
 
 # ---------------------------------------------------------------------------
@@ -562,7 +562,7 @@ with tab_dss:
         "— only what the DSS interface explicitly defines below."
     )
     ev_df = pd.DataFrame(evidence).drop(columns=["risk_distribution_pct", "notes"])
-    st.dataframe(ev_df, use_container_width=True)
+    st.dataframe(ev_df, width="stretch")
 
     with st.expander("Full evidence JSON (includes risk distribution & notes)"):
         st.json(evidence)
