@@ -109,8 +109,29 @@ st.set_page_config(page_title="Digital Twin DSS", page_icon="\U0001F9ED", layout
 
 st.markdown("""
 <style>
-    .stApp { background-color: #F7F6F2; }
-    h1, h2, h3 { font-family: 'Georgia', serif; color: #22282B; }
+    :root {
+        --page-bg: #F7F6F2;
+        --panel-bg: #FFFFFF;
+        --text: #22282B;
+        --muted-text: #4F5A5F;
+        --border: #E4E1D8;
+    }
+    .stApp { background-color: var(--page-bg); color: var(--text); }
+    h1, h2, h3, h4, h5, h6 {
+        font-family: 'Georgia', serif;
+        color: var(--text) !important;
+    }
+    .stMarkdown, .stMarkdown p, .stMarkdown li,
+    [data-testid="stCaptionContainer"],
+    [data-testid="stWidgetLabel"],
+    [data-testid="stText"] {
+        color: var(--text);
+        line-height: 1.5;
+    }
+    [data-testid="stCaptionContainer"] { color: var(--muted-text) !important; }
+    [data-testid="stWidgetLabel"] p { color: var(--text) !important; }
+    [data-testid="stDataFrame"] { color: var(--text); }
+    .stButton > button, .stSelectbox label { color: var(--text) !important; }
     .status-pill {
         display: inline-block; padding: 3px 12px; border-radius: 12px;
         font-size: 0.85rem; font-weight: 600; color: white;
@@ -120,9 +141,11 @@ st.markdown("""
         font-size: 0.7rem; font-weight: 600; color: white; margin-right: 4px;
     }
     .metric-card {
-        background: white; border-radius: 10px; padding: 16px 20px;
-        border: 1px solid #E4E1D8; box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        background: var(--panel-bg); color: var(--text); border-radius: 10px;
+        padding: 16px 20px; border: 1px solid var(--border);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
     }
+    .metric-card div { color: var(--text); }
 </style>
 """, unsafe_allow_html=True)
 
