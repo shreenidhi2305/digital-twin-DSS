@@ -37,6 +37,7 @@ INK = "#22282B"
 st.markdown(f"""
 <style>
     .stApp {{ background-color: #F7F6F2; }}
+    [data-testid="stSidebar"] {{ background-color: #FFFFFF; }}
     h1, h2, h3 {{ color: {INK}; font-family: 'Georgia', serif; }}
     .metric-card {{
         background: white; border-radius: 10px; padding: 14px 18px;
@@ -45,6 +46,54 @@ st.markdown(f"""
     .status-pill {{
         display: inline-block; padding: 2px 10px; border-radius: 12px;
         font-size: 0.8rem; font-weight: 600; color: white;
+    }}
+
+    /* --- Explicit widget colors so buttons / selectors stay readable
+       regardless of the viewer's light/dark Streamlit theme setting --- */
+
+    /* Widget labels ("Simulate", "Scenario type", etc.) */
+    [data-testid="stWidgetLabel"] p, .stSidebar label, .stSidebar span {{
+        color: {INK} !important;
+    }}
+
+    /* Regular buttons (Reset / Next Day / Play / Generate JSON) */
+    .stButton > button, .stDownloadButton > button {{
+        background-color: #FFFFFF !important;
+        color: {INK} !important;
+        border: 1px solid #C9C5B8 !important;
+    }}
+    .stButton > button:hover, .stDownloadButton > button:hover {{
+        color: {ACCENT} !important;
+        border-color: {ACCENT} !important;
+    }}
+    .stButton > button p, .stDownloadButton > button p {{ color: inherit !important; }}
+
+    /* Primary button (RUN DIGITAL TWIN SIMULATION) */
+    .stButton > button[kind="primary"],
+    .stButton > button[data-testid="stBaseButton-primary"] {{
+        background-color: {ACCENT} !important;
+        color: #FFFFFF !important;
+        border: none !important;
+    }}
+    .stButton > button[kind="primary"]:hover,
+    .stButton > button[data-testid="stBaseButton-primary"]:hover {{
+        background-color: #234f4e !important;
+        color: #FFFFFF !important;
+    }}
+    .stButton > button[kind="primary"] p,
+    .stButton > button[data-testid="stBaseButton-primary"] p {{ color: inherit !important; }}
+
+    /* Selectbox / multiselect / radio (scenario type, store, item pickers) */
+    div[data-baseweb="select"] > div {{
+        background-color: #FFFFFF !important;
+        color: {INK} !important;
+        border-color: #C9C5B8 !important;
+    }}
+    div[data-baseweb="select"] * {{ color: {INK} !important; }}
+    /* Dropdown menu popover when a selectbox is open */
+    ul[data-baseweb="menu"], ul[data-baseweb="menu"] li {{
+        background-color: #FFFFFF !important;
+        color: {INK} !important;
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -281,20 +330,44 @@ with tab1:
             )
 
     st.markdown("#### Demand vs inventory over the simulation horizon (network total)")
+    st.caption(
+        "\u26A0\uFE0F These two lines use **separate scales** (left axis = demand, right axis = "
+        "inventory) because they measure different things: demand is a **daily rate** "
+        "(units sold *per day*), while inventory is a **stock level** (units on hand "
+        "*right now*). The lines crossing visually does **not** mean inventory ran out -- "
+        "use the 'Days of supply remaining' metric below for the real signal."
+    )
     net_daily = scn_steps.groupby("date").agg(
         predicted_demand=("predicted_demand", "sum"),
         actual_demand=("actual_demand", "sum"),
         inventory=("inventory", "sum"),
     ).reset_index()
+
+    latest = net_daily.iloc[-1]
+    days_of_supply = latest.inventory / max(latest.actual_demand, 1e-6)
+    dos_color = ACCENT_BAD if days_of_supply < 2 else (ACCENT_WARN if days_of_supply < 5 else ACCENT_GOOD)
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Total inventory (latest day)", f"{latest.inventory:,.0f} units")
+    m2.metric("Simulated demand (latest day)", f"{latest.actual_demand:,.0f} units/day")
+    m3.metric("Days of supply remaining", f"{days_of_supply:.1f} days")
+    st.caption(
+        f"Days of supply = inventory \u00f7 demand rate. At {days_of_supply:.1f} days, the "
+        "network is not close to running out -- this is the number that actually drives "
+        "the store status pills above (via per-store-item stockout events), not the raw "
+        "gap between the two chart lines."
+    )
+
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=net_daily.date, y=net_daily.actual_demand, name="Simulated demand",
+    fig.add_trace(go.Scatter(x=net_daily.date, y=net_daily.actual_demand, name="Simulated demand (units/day)",
                               line=dict(color=ACCENT_WARN)))
-    fig.add_trace(go.Scatter(x=net_daily.date, y=net_daily.inventory, name="Total inventory",
+    fig.add_trace(go.Scatter(x=net_daily.date, y=net_daily.inventory, name="Total inventory (units on hand)",
                               line=dict(color=ACCENT), yaxis="y2"))
     fig.update_layout(
-        yaxis=dict(title="Demand (units/day)"),
-        yaxis2=dict(title="Inventory (units)", overlaying="y", side="right"),
-        legend=dict(orientation="h", y=1.1), height=380, margin=dict(t=30),
+        yaxis=dict(title=dict(text="Demand (units/day)", font=dict(color=ACCENT_WARN)),
+                    tickfont=dict(color=ACCENT_WARN)),
+        yaxis2=dict(title=dict(text="Inventory (units on hand)", font=dict(color=ACCENT)),
+                     tickfont=dict(color=ACCENT), overlaying="y", side="right"),
+        legend=dict(orientation="h", y=1.15), height=380, margin=dict(t=30),
         plot_bgcolor="white",
     )
     st.plotly_chart(fig, width='stretch')

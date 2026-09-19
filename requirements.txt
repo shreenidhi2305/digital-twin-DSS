@@ -5,7 +5,6 @@ xgboost>=2.0
 joblib>=1.3
 streamlit>=1.38
 
-# Only needed if you also want to run each twin's OWN standalone app
-# (manufacturing_twin/dashboard_standalone.py, retail_twin/app.py,
-# healthcare_twin/app.py) instead of / in addition to the unified dashboard.py:
+# Needed by the twin dashboards that open from the unified app
+# (healthcare_twin/app.py, retail_twin/app.py):
 plotly>=5.18

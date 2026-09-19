@@ -617,7 +617,7 @@ with tab_forecast:
     # Default zoom: last 14 days of the test period, so it opens legible
     # rather than as a 1994-hour blur — the range selector/slider un-zooms.
     if len(ts) > 0:
-        fc_fig.update_xaxes(range=[ts.iloc[max(0, len(ts) - 24 * 14)], ts.iloc[-1]])
+        fc_fig.update_xaxes(range=[ts[max(0, len(ts) - 24 * 14)], ts[-1]])
     render_chart(fc_fig, 400, time_axis=True)
     st.markdown(
         '<div class="note">Modest predictive performance, reported honestly (MAE/R² above '

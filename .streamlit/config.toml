@@ -1,0 +1,5 @@
+# One theme for the whole app. The overview page and both twins style
+# themselves for a light background; without this, a viewer whose browser is in
+# dark mode would get dark-styled widgets on those light pages.
+[theme]
+base = "light"

@@ -2,13 +2,17 @@
 
 This folder combines your three Digital Twin prototypes (manufacturing,
 healthcare, business/retail) and your NLP pipeline's output into one fused
-Digital Twin Readiness Index, shown on one Streamlit dashboard.
+Digital Twin Readiness Index, shown on one Streamlit dashboard, and lets you
+open each twin's own full dashboard from that same app.
 
 ## Folder layout — everything is already in the right place
 
 ```
 dss_project/
-├── dashboard.py          <- run THIS (Step 4: unified Streamlit dashboard)
+├── dashboard.py          <- run THIS: entry point + navigation between pages
+├── dss_overview.py        <- "DSS Overview" page (Step 4: the fused Readiness Index)
+├── twin_embed.py          <- registry (TWINS) + runner that opens each twin's own dashboard
+├── .streamlit/config.toml <- light theme for the whole app
 ├── dss_engine.py          <- Step 2: NLP + twin fusion logic
 ├── evidence_schema.py     <- Step 1: common evidence schema + adapters
 ├── twin_runners.py        <- Step 3: real (non-mocked) twin integration
@@ -27,9 +31,9 @@ dss_project/
     └── data/ (train.csv, test.csv)
 ```
 
-**Nothing needs to be moved.** `dashboard.py` looks for `manufacturing_twin/`,
+**Nothing needs to be moved.** `dss_overview.py` looks for `manufacturing_twin/`,
 `healthcare_twin/`, `retail_twin/` and `master_nlp_aspects.csv` right next to
-itself (see `TWIN_DIRS` / `ASPECTS_CSV` at the top of `dashboard.py`) — that's
+itself (see `TWIN_DIRS` / `ASPECTS_CSV` at the top of `dss_overview.py`) — that's
 exactly this layout. If you ever move a twin folder elsewhere, update the
 matching path in `TWIN_DIRS` instead of moving files back.
 
@@ -50,8 +54,8 @@ source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-This installs pandas, numpy, scikit-learn, xgboost, joblib, streamlit (and
-plotly, only needed if you also run a twin's own standalone app).
+This installs pandas, numpy, scikit-learn, xgboost, joblib, streamlit and
+plotly (the twin dashboards need plotly).
 
 ## 2. Run the unified dashboard
 
@@ -59,7 +63,20 @@ plotly, only needed if you also run a twin's own standalone app).
 streamlit run dashboard.py
 ```
 
-Opens at `http://localhost:8501`. On first load it will:
+Opens at `http://localhost:8501`. The top navigation bar has one page per
+dashboard:
+
+| Page | What it is |
+|---|---|
+| **DSS Overview** | The fused NLP + twin Readiness Index (below). Also has "Open ..." buttons for each twin. |
+| **Healthcare Twin** | The healthcare twin's own full dashboard (`healthcare_twin/app.py`) |
+| **Retail Twin** | The retail twin's own full dashboard (`retail_twin/app.py`) |
+
+The twin pages run each twin's original `app.py` unchanged, so they behave
+exactly as they do standalone. See `twin_embed.py` for how they are isolated
+from each other (working directory, module names, page config).
+
+On the DSS Overview page, first load will:
 1. Run the manufacturing twin against `data/live_machine_stream.csv` using
    the real trained XGBoost model
 2. Run the healthcare twin's simulation for the default facility (Kamla
@@ -80,6 +97,14 @@ files up front and raise a clear `FileNotFoundError` naming exactly what's
 missing, rather than failing partway through — so if a folder got moved or a
 file didn't copy, the dashboard's error banner will tell you precisely which
 file to restore and where.
+
+## Adding the manufacturing twin's dashboard
+
+Once its dashboard is final, put the files in `manufacturing_twin/`, then in
+`twin_embed.py` uncomment the `"manufacturing"` entry in `TWINS` (check that
+`entry` names the right script, currently `dashboard_standalone.py`). The
+navigation bar and the buttons on the overview page pick it up automatically.
+No other file needs to change.
 
 ## What you can safely add or swap later
 
@@ -106,6 +131,9 @@ cd healthcare_twin    && streamlit run app.py
 cd retail_twin        && streamlit run app.py
 ```
 
-These are unchanged from what you uploaded — the unified `dashboard.py`
-calls their underlying modules directly rather than importing `app.py`, so
-both can be used independently without conflict.
+The unified app's overview page calls their underlying modules directly, and
+the twin pages run their `app.py`, so both can be used independently without
+conflict. Two small differences from the earlier copies: `retail_twin/app.py`
+is the newer standalone version (dark-mode readability CSS, days-of-supply
+metric), and `healthcare_twin/app.py` has a one-line fix in the Forecasting tab
+(`ts.iloc[...]` on a `DatetimeIndex` raised an AttributeError).
