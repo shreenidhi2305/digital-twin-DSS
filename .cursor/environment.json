@@ -1,0 +1,6 @@
+{
+  "name": "Digital Twin DSS",
+  "install": "python3 -m pip install --user -r requirements.txt",
+  "start": "python3 -m streamlit run dashboard.py --server.headless true --server.port 8501 --server.address 0.0.0.0",
+  "ports": [8501]
+}
