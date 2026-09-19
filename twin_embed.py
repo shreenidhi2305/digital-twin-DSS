@@ -67,12 +67,12 @@ TWINS = {
 }
 
 
-def _purge_twin_modules(twin_dir: Path) -> None:
-    """Drop every imported module whose source file lives inside twin_dir."""
-    root = str(twin_dir)
-    for name, mod in list(sys.modules.items()):
+def _purge_foreign_modules(twin_dir: Path) -> None:
+    root = os.path.normcase(os.path.abspath(twin_dir))
+    for name in {p.stem for p in twin_dir.glob("*.py")}:
+        mod = sys.modules.get(name)
         src = getattr(mod, "__file__", None)
-        if src and str(src).startswith(root):
+        if mod is not None and not (src and os.path.normcase(os.path.abspath(src)).startswith(root)):
             sys.modules.pop(name, None)
 
 
@@ -81,7 +81,7 @@ def _twin_environment(twin_dir: Path):
     prev_cwd = os.getcwd()
     orig_set_page_config = st.set_page_config
 
-    _purge_twin_modules(twin_dir)
+    _purge_foreign_modules(twin_dir)
     sys.path.insert(0, str(twin_dir))
     os.chdir(twin_dir)
     st.set_page_config = lambda *args, **kwargs: None
@@ -92,7 +92,6 @@ def _twin_environment(twin_dir: Path):
         os.chdir(prev_cwd)
         if str(twin_dir) in sys.path:
             sys.path.remove(str(twin_dir))
-        _purge_twin_modules(twin_dir)
 
 
 def run_twin(key: str) -> None:
