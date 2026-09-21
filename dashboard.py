@@ -17,10 +17,12 @@ To add the manufacturing twin later, see the TWINS registry in twin_embed.py.
 import streamlit as st
 
 from twin_embed import build_twin_pages
+import ui_theme
 
 # Streamlit allows one set_page_config per run, so it lives here. The twins'
 # own set_page_config calls are neutralised in twin_embed.py.
 st.set_page_config(page_title="Digital Twin DSS", page_icon="\U0001F9ED", layout="wide")
+ui_theme.inject()
 
 overview = st.Page(
     "dss_overview.py", title="DSS Overview", icon=":material/dashboard:",

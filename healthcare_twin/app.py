@@ -20,10 +20,17 @@ are clearly distinguished from observed data throughout.
 """
 
 import json
+import sys
+from pathlib import Path
 
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+import ui_theme
 
 import config
 import data_connector
@@ -46,92 +53,12 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-SCENARIO_COLORS = {"LOW": "#12A594", "BASE": "#2F6FED", "HIGH": "#E4572E"}
+SCENARIO_COLORS = {"LOW": ui_theme.GOOD, "BASE": ui_theme.NAVY, "HIGH": ui_theme.BAD}
 SCENARIO_LABELS = {"LOW": "Low-load", "BASE": "Baseline", "HIGH": "High-load"}
 PLOTLY_TEMPLATE = "plotly_white"
-PLOT_BG = "#FFFFFF"
+PLOT_BG = ui_theme.PANEL
 
-CUSTOM_CSS = """
-<style>
-:root {
-    --bg: #F5F8FC;
-    --panel: #FFFFFF;
-    --line: #E2E8F2;
-    --text: #172230;
-    --sub: #5B6B82;
-    --blue: #2F6FED;
-    --blue-light: #EAF1FE;
-    --amber: #B45309;
-    --amber-light: #FEF3E2;
-}
-.stApp { background-color: var(--bg); color: var(--text); }
-section[data-testid="stSidebar"] {
-    background-color: #FFFFFF;
-    border-right: 1px solid var(--line);
-}
-[data-testid="stMetric"] {
-    background-color: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 12px 14px 8px;
-}
-[data-testid="stMetricLabel"] { color: var(--sub) !important; }
-[data-testid="stMetricValue"] { color: var(--text) !important; }
-h1, h2, h3, h4 { color: var(--text) !important; }
-.eyebrow {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    letter-spacing: .14em;
-    text-transform: uppercase;
-    color: var(--blue);
-    margin-bottom: 2px;
-}
-.disclaimer {
-    border: 1px solid #BFD6FB;
-    background: var(--blue-light);
-    color: #1E3A8A;
-    font-size: 12.5px;
-    padding: 10px 14px;
-    border-radius: 8px;
-    margin-bottom: 14px;
-    line-height: 1.5;
-}
-.note {
-    border: 1px solid var(--line);
-    background: #FAFBFD;
-    color: var(--sub);
-    font-size: 12.5px;
-    padding: 10px 14px;
-    border-radius: 8px;
-    line-height: 1.5;
-}
-.warn {
-    border: 1px solid #F3D0A0;
-    background: var(--amber-light);
-    color: var(--amber);
-    font-size: 12.5px;
-    padding: 10px 14px;
-    border-radius: 8px;
-    line-height: 1.5;
-}
-.legend-row {
-    display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap;
-}
-.legend-chip {
-    flex: 1; min-width: 220px;
-    border-radius: 8px; padding: 9px 12px;
-    font-size: 12px; line-height: 1.45;
-    border: 1px solid var(--line); background: var(--panel);
-}
-.legend-chip b { display: block; font-size: 11px; letter-spacing: .04em;
-    text-transform: uppercase; margin-bottom: 3px; }
-.legend-observed b { color: #0F766E; }
-.legend-assumed b { color: #B45309; }
-.legend-derived b { color: #2F6FED; }
-.legend-simulated b { color: #7C3AED; }
-</style>
-"""
-st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+ui_theme.inject()
 
 
 # ---------------------------------------------------------------------------
@@ -235,44 +162,27 @@ RANGE_SELECTOR = dict(
         dict(count=3, label="3m", step="month", stepmode="backward"),
         dict(step="all", label="All"),
     ],
-    bgcolor="#FFFFFF",
-    activecolor="#DCE8FD",
-    bordercolor="#E2E8F2",
+    bgcolor=ui_theme.PANEL,
+    activecolor=ui_theme.ACCENT_SOFT,
+    bordercolor=ui_theme.LINE,
     borderwidth=1,
-    font=dict(color="#172230", size=11),
+    font=dict(color=ui_theme.INK, size=11),
     y=1.12,
 )
 
 
 def styled_fig_layout(fig, height, time_axis=False):
-    """Apply the light theme explicitly (color/font values are set here on
-    the figure itself, not left to inherit) so the chart stays readable
-    regardless of Streamlit's own light/dark theme setting."""
-    fig.update_layout(
-        template=PLOTLY_TEMPLATE, height=height,
-        paper_bgcolor=PLOT_BG, plot_bgcolor=PLOT_BG,
-        font=dict(color="#172230", size=12),
-        margin=dict(l=10, r=10, t=10, b=10),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0,
-                     font=dict(color="#172230")),
-        hoverlabel=dict(bgcolor="#FFFFFF", bordercolor="#E2E8F2",
-                          font=dict(color="#172230")),
-    )
-    fig.update_xaxes(gridcolor="#EEF2F8", color="#172230",
-                       tickfont=dict(color="#172230"),
-                       title_font=dict(color="#172230"))
-    fig.update_yaxes(gridcolor="#EEF2F8", color="#172230",
-                       tickfont=dict(color="#172230"),
-                       title_font=dict(color="#172230"))
+    """Apply the shared light theme, then healthcare time-axis extras."""
+    ui_theme.style_plotly(fig, height=height, time_axis=time_axis)
     if time_axis:
         fig.update_xaxes(
             tickformatstops=TICKFORMATSTOPS,
             hoverformat="%b %d, %Y %H:%M",
             rangeselector=RANGE_SELECTOR,
             rangeslider=dict(visible=True, thickness=0.06,
-                               bgcolor="#F5F8FC", bordercolor="#E2E8F2"),
+                               bgcolor=ui_theme.BG, bordercolor=ui_theme.LINE),
         )
-        fig.update_layout(margin=dict(l=10, r=10, t=44, b=10))
+        fig.update_layout(margin=dict(l=16, r=16, t=48, b=16))
     return fig
 
 
@@ -282,7 +192,7 @@ def render_chart(fig, height, time_axis=False):
     light styling above (that re-theming is what caused light-on-light
     text when the app's Streamlit theme was dark)."""
     styled_fig_layout(fig, height, time_axis=time_axis)
-    st.plotly_chart(fig, use_container_width=True, theme=None)
+    st.plotly_chart(fig, width="stretch", theme=None)
 
 
 # ---------------------------------------------------------------------------
@@ -454,37 +364,51 @@ with tab_occ:
             name=f"{SCENARIO_LABELS[name]} ({int(df['initial_occupancy_pct'].iloc[0]*100)}% start)",
             line=dict(color=SCENARIO_COLORS.get(name), width=1.3),
         ))
-    fig.add_hline(y=100, line_dash="dash", line_color="#94A3B8",
+    fig.add_hline(y=100, line_dash="dash", line_color=ui_theme.MUTED,
                    annotation_text="Physical capacity (100%)", annotation_position="top left")
-    fig.add_hline(y=WARN_THRESHOLD, line_dash="dot", line_color="#B45309",
+    fig.add_hline(y=WARN_THRESHOLD, line_dash="dot", line_color=ui_theme.WARN,
                    annotation_text=f"High-pressure warning ({WARN_THRESHOLD:.0f}%)",
                    annotation_position="bottom left")
     fig.update_layout(xaxis_title="Time", yaxis_title="Occupancy rate (%)")
-    render_chart(fig, 460, time_axis=True)
-
-    st.markdown("#### Scenario metrics")
-    metric_cols = st.columns(len(shown_keys))
-    for col, name in zip(metric_cols, shown_keys):
-        s = summaries[name]
-        with col:
-            st.markdown(f"**{SCENARIO_LABELS[name]}** (start {int(s['initial_occupancy']*100)}%)")
-            st.metric("Peak occupancy", f"{s['peak_occupancy']*100:.1f}%")
-            st.metric("Mean occupancy", f"{s['mean_occupancy']*100:.1f}%")
-            st.metric("Capacity breach", f"{s['breach_percentage']:.1f}% of hours",
-                       help=f"Longest continuous breach: {s['longest_breach_hours']} hours")
-            st.metric("Peak staff pressure", f"{s['peak_staff_pressure']:.2f} pts/staff")
+    render_chart(fig, 440, time_axis=True)
 
     if compare_all:
-        st.markdown("#### Capacity breach comparison")
-        breach_fig = go.Figure(go.Bar(
-            x=[SCENARIO_LABELS[n] for n in shown_keys],
-            y=[summaries[n]["breach_percentage"] for n in shown_keys],
-            marker_color=[SCENARIO_COLORS.get(n) for n in shown_keys],
-            text=[f"{summaries[n]['breach_percentage']:.1f}%" for n in shown_keys],
-            textposition="outside",
-        ))
-        breach_fig.update_layout(yaxis_title="% of simulated hours in capacity breach")
-        render_chart(breach_fig, 320)
+        met_col, breach_col = st.columns([1.6, 1], gap="large")
+        with met_col:
+            st.markdown("#### Scenario metrics")
+            metric_cols = st.columns(len(shown_keys))
+            for col, name in zip(metric_cols, shown_keys):
+                s = summaries[name]
+                with col:
+                    st.markdown(f"**{SCENARIO_LABELS[name]}** (start {int(s['initial_occupancy']*100)}%)")
+                    st.metric("Peak occupancy", f"{s['peak_occupancy']*100:.1f}%")
+                    st.metric("Mean occupancy", f"{s['mean_occupancy']*100:.1f}%")
+                    st.metric("Capacity breach", f"{s['breach_percentage']:.1f}% of hours",
+                               help=f"Longest continuous breach: {s['longest_breach_hours']} hours")
+                    st.metric("Peak staff pressure", f"{s['peak_staff_pressure']:.2f} pts/staff")
+        with breach_col:
+            st.markdown("#### Capacity breach")
+            breach_fig = go.Figure(go.Bar(
+                x=[SCENARIO_LABELS[n] for n in shown_keys],
+                y=[summaries[n]["breach_percentage"] for n in shown_keys],
+                marker_color=[SCENARIO_COLORS.get(n) for n in shown_keys],
+                text=[f"{summaries[n]['breach_percentage']:.1f}%" for n in shown_keys],
+                textposition="outside",
+            ))
+            breach_fig.update_layout(yaxis_title="% of hours in breach")
+            render_chart(breach_fig, 360)
+    else:
+        st.markdown("#### Scenario metrics")
+        metric_cols = st.columns(len(shown_keys))
+        for col, name in zip(metric_cols, shown_keys):
+            s = summaries[name]
+            with col:
+                st.markdown(f"**{SCENARIO_LABELS[name]}** (start {int(s['initial_occupancy']*100)}%)")
+                st.metric("Peak occupancy", f"{s['peak_occupancy']*100:.1f}%")
+                st.metric("Mean occupancy", f"{s['mean_occupancy']*100:.1f}%")
+                st.metric("Capacity breach", f"{s['breach_percentage']:.1f}% of hours",
+                           help=f"Longest continuous breach: {s['longest_breach_hours']} hours")
+                st.metric("Peak staff pressure", f"{s['peak_staff_pressure']:.2f} pts/staff")
 
     with st.expander("Risk distribution"):
         risk_cols = st.columns(len(shown_keys))
@@ -512,7 +436,7 @@ with tab_demand:
     )
     di_fig = go.Figure(go.Scattergl(
         x=demand_df["timestamp"], y=demand_df["demand_intensity"],
-        line=dict(color="#2F6FED", width=1),
+        line=dict(color=ui_theme.NAVY, width=1),
     ))
     di_fig.add_hline(y=1.0, line_dash="dash", line_color="#94A3B8")
     di_fig.update_layout(xaxis_title="Time", yaxis_title="Demand intensity (dimensionless)")
@@ -551,11 +475,11 @@ with tab_demand:
         sens_fig = go.Figure()
         sens_fig.add_trace(go.Scatter(
             x=sweep_df["time_constant"], y=sweep_df["breach_pct"],
-            name="Capacity breach (% of hours)", line=dict(color="#E4572E", width=2)))
+            name="Capacity breach (% of hours)", line=dict(color=ui_theme.BAD, width=2)))
         sens_fig.add_trace(go.Scatter(
             x=sweep_df["time_constant"], y=sweep_df["peak_occupancy_pct"],
-            name="Peak occupancy (%)", line=dict(color="#2F6FED", width=2), yaxis="y2"))
-        sens_fig.add_vline(x=time_constant, line_dash="dash", line_color="#5B6B82",
+            name="Peak occupancy (%)", line=dict(color=ui_theme.NAVY, width=2), yaxis="y2"))
+        sens_fig.add_vline(x=time_constant, line_dash="dash", line_color=ui_theme.MUTED,
                             annotation_text="Current setting", annotation_position="top")
         sens_fig.update_layout(
             xaxis_title="System adjustment time constant (hours)",
@@ -609,10 +533,10 @@ with tab_forecast:
     ts = pd.to_datetime(forecast_result["test_timestamps"])
     fc_fig = go.Figure()
     fc_fig.add_trace(go.Scattergl(x=ts, y=forecast_result["test_actual"],
-                                   name="Actual admissions", line=dict(color="#172230", width=1.2)))
+                                   name="Actual admissions", line=dict(color=ui_theme.INK, width=1.2)))
     fc_fig.add_trace(go.Scattergl(x=ts, y=forecast_result["test_predicted"],
                                    name="Forecast (6h ahead) — PREDICTED",
-                                   line=dict(color="#E4572E", width=1.2)))
+                                   line=dict(color=ui_theme.BAD, width=1.2)))
     fc_fig.update_layout(xaxis_title="Time", yaxis_title="Admissions")
     # Default zoom: last 14 days of the test period, so it opens legible
     # rather than as a 1994-hour blur — the range selector/slider un-zooms.
@@ -638,7 +562,7 @@ with tab_dss:
         "— only what the DSS interface explicitly defines below."
     )
     ev_df = pd.DataFrame(evidence).drop(columns=["risk_distribution_pct", "notes"])
-    st.dataframe(ev_df, use_container_width=True)
+    st.dataframe(ev_df, width="stretch")
 
     with st.expander("Full evidence JSON (includes risk distribution & notes)"):
         st.json(evidence)

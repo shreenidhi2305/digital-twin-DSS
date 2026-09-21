@@ -11,25 +11,38 @@ stream, updates the twin, and shows:
 Run with:  streamlit run dashboard.py
 """
 
+import sys
 import time
+from pathlib import Path
 
 import pandas as pd
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import streamlit as st
 
 import stream
 import twin as twin_module
 
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+import ui_theme
+from ui_theme import ACCENT, NAVY, WARN, BAD, GOOD, LINE, MUTED, show_plotly
+
 st.set_page_config(page_title="Manufacturing Digital Twin", layout="wide")
+ui_theme.inject()
+
+DEFAULT_MACHINE_ID = "CNC-01"
 
 HEALTH_COLORS = {
-    "Healthy": "#2ecc71",
-    "Warning": "#f39c12",
-    "Critical": "#e74c3c",
+    "Healthy": GOOD,
+    "Warning": WARN,
+    "Critical": BAD,
 }
 
 # --- Session state: persists the twin + stream position across reruns --
 if "twin" not in st.session_state:
-    st.session_state.twin = twin_module.MachineTwin("CNC-01")
+    st.session_state.twin = twin_module.MachineTwin(DEFAULT_MACHINE_ID)
 if "rows" not in st.session_state:
     st.session_state.rows = stream.load_stream().to_dict(orient="records")
 if "index" not in st.session_state:
@@ -40,25 +53,26 @@ if "playing" not in st.session_state:
 total_rows = len(st.session_state.rows)
 
 # --- Sidebar controls ----------------------------------------------------
-st.sidebar.title("Digital Twin Controls")
-st.sidebar.caption("Manufacturing domain — evidence source for the DSS")
-
-machine_id = st.sidebar.text_input("Machine ID", value=st.session_state.twin.machine_id)
-if machine_id != st.session_state.twin.machine_id:
-    st.session_state.twin.machine_id = machine_id
+st.sidebar.markdown('<div class="eyebrow">Decision Support Console</div>', unsafe_allow_html=True)
+st.sidebar.title("Manufacturing Twin")
+st.sidebar.caption(
+    f"Machine **{DEFAULT_MACHINE_ID}** — replayed sensor stream with XGBoost "
+    "failure prediction. Evidence source for the DSS."
+)
 
 speed = st.sidebar.slider("Playback delay (seconds/reading)", 0.0, 1.0, 0.1, 0.05)
 step_size = st.sidebar.slider("Readings per step", 1, 50, 1)
 
 col_play, col_reset = st.sidebar.columns(2)
-if col_play.button("▶ Play" if not st.session_state.playing else "⏸ Pause"):
+if col_play.button("Play" if not st.session_state.playing else "Pause"):
     st.session_state.playing = not st.session_state.playing
-if col_reset.button("⟲ Reset"):
-    st.session_state.twin = twin_module.MachineTwin(machine_id)
+if col_reset.button("Reset"):
+    st.session_state.twin = twin_module.MachineTwin(DEFAULT_MACHINE_ID)
     st.session_state.index = 0
     st.session_state.playing = False
 
-st.sidebar.progress(min(st.session_state.index / total_rows, 1.0))
+progress = min(st.session_state.index / max(total_rows, 1), 1.0)
+st.sidebar.progress(progress)
 st.sidebar.caption(f"Reading {st.session_state.index} / {total_rows}")
 
 # --- Advance the stream ----------------------------------------------------
@@ -73,33 +87,41 @@ if st.session_state.index < total_rows:
 state = st.session_state.twin.latest_state
 
 # --- Header ----------------------------------------------------------------
-st.title("🏭 Manufacturing Digital Twin")
-st.caption("Lightweight prototype — evidence source for the Digital Twin Readiness Index / DSS")
+st.markdown(
+    '<div class="eyebrow">FYP · AI-Based DSS for Digital Twin-Driven Transformation</div>',
+    unsafe_allow_html=True,
+)
+st.title("Manufacturing Digital Twin")
+st.caption(
+    "Lightweight prototype: a live mirror of one machine that scores each "
+    "sensor reading and hands the DSS a compact evidence packet — not raw telemetry."
+)
 
 if state is None:
-    st.info("No readings processed yet. Click ▶ Play or Reset to start the stream.")
+    st.info("No readings processed yet. Click Play or Reset to start the stream.")
     st.stop()
 
 # --- Top-line status ---------------------------------------------------------
 health = state["health"]
-color = HEALTH_COLORS.get(health, "#95a5a6")
+color = HEALTH_COLORS.get(health, MUTED)
 
-status_col, prob_col, machine_col = st.columns(3)
-with status_col:
+k1, k2, k3, k4 = st.columns(4)
+with k1:
     st.markdown(
         f"""
-        <div style="padding:1rem;border-radius:0.5rem;background:{color}22;
-                    border:2px solid {color};text-align:center;">
-            <div style="font-size:0.9rem;color:#666;">MACHINE HEALTH</div>
-            <div style="font-size:2rem;font-weight:700;color:{color};">{health}</div>
+        <div class="health-banner" style="background:{color}14;border-color:{color};">
+            <div class="k">Machine health</div>
+            <div class="v" style="color:{color};">{health}</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
-with prob_col:
-    st.metric("Failure Probability", f"{state['failure_probability']*100:.2f}%")
-with machine_col:
+with k2:
+    st.metric("Failure probability", f"{state['failure_probability']*100:.2f}%")
+with k3:
     st.metric("Machine", state["machine"], help=f"Type: {state['machine_type']}")
+with k4:
+    st.metric("Stream progress", f"{st.session_state.index} / {total_rows}")
 
 if health != "Healthy":
     st.warning(f"**Recommendation:** {state['recommendation']}")
@@ -107,35 +129,100 @@ else:
     st.success(f"**Recommendation:** {state['recommendation']}")
 
 # --- Operating conditions ---------------------------------------------------
-st.subheader("Current Operating Conditions")
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("Air Temperature", f"{state['air_temperature_K']} K")
-c2.metric("Process Temperature", f"{state['process_temperature_K']} K")
-c3.metric("Rotational Speed", f"{state['rotational_speed_rpm']} rpm")
+st.subheader("Current operating conditions")
+c1, c2, c3, c4, c5 = st.columns(5)
+c1.metric("Air temperature", f"{state['air_temperature_K']} K")
+c2.metric("Process temperature", f"{state['process_temperature_K']} K")
+c3.metric("Rotational speed", f"{state['rotational_speed_rpm']} rpm")
 c4.metric("Torque", f"{state['torque_Nm']} Nm")
-st.metric("Tool Wear", f"{state['tool_wear_min']} min")
+c5.metric("Tool wear", f"{state['tool_wear_min']} min")
 
-# --- History chart -----------------------------------------------------------
-st.subheader("Failure Probability Over Time")
 hist_df = pd.DataFrame(st.session_state.twin.history)
-if not hist_df.empty:
-    chart_df = hist_df[["failure_probability"]].reset_index(drop=True)
-    st.line_chart(chart_df, height=250)
 
-# --- Recent readings table ----------------------------------------------------
-with st.expander("Recent readings"):
-    st.dataframe(
-        hist_df.tail(20)[
-            ["timestamp", "health", "failure_probability", "air_temperature_K",
+chart_col, table_col = st.columns([1.6, 1], gap="large")
+
+with chart_col:
+    st.subheader("Failure probability over time")
+    if not hist_df.empty:
+        y = hist_df["failure_probability"] * 100
+        line_color = color
+        fig = go.Figure()
+        fig.add_hrect(y0=60, y1=100, fillcolor=BAD, opacity=0.08, line_width=0)
+        fig.add_hrect(y0=30, y1=60, fillcolor=WARN, opacity=0.08, line_width=0)
+        fig.add_hrect(y0=0, y1=30, fillcolor=GOOD, opacity=0.08, line_width=0)
+        fig.add_hline(y=30, line_dash="dot", line_color=GOOD,
+                      annotation_text="Healthy < 30%", annotation_font_color=GOOD)
+        fig.add_hline(y=60, line_dash="dot", line_color=WARN,
+                      annotation_text="Critical ≥ 60%", annotation_font_color=WARN)
+        fig.add_trace(go.Scatter(
+            y=y,
+            x=list(range(1, len(y) + 1)),
+            mode="lines",
+            name="Failure probability",
+            line=dict(color=line_color, width=2),
+            hovertemplate="Reading %{x}<br>%{y:.2f}%<extra></extra>",
+        ))
+        fig.update_layout(
+            showlegend=False,
+            yaxis_title="Failure probability (%)",
+            xaxis_title="Reading",
+            yaxis_range=[0, max(100, float(y.max()) + 5)],
+        )
+        show_plotly(fig, height=360)
+    else:
+        st.info("History will appear as the stream advances.")
+
+    if not hist_df.empty and len(hist_df) > 1:
+        st.subheader("Sensor traces")
+        sensors = make_subplots(
+            rows=2, cols=2,
+            subplot_titles=("Temperatures (K)", "Rotational speed (rpm)",
+                            "Torque (Nm)", "Tool wear (min)"),
+            vertical_spacing=0.16, horizontal_spacing=0.1,
+        )
+        x = list(range(1, len(hist_df) + 1))
+        sensors.add_trace(go.Scatter(x=x, y=hist_df["air_temperature_K"],
+                                     name="Air", line=dict(color=NAVY, width=1.4)),
+                          row=1, col=1)
+        sensors.add_trace(go.Scatter(x=x, y=hist_df["process_temperature_K"],
+                                     name="Process", line=dict(color=ACCENT, width=1.4)),
+                          row=1, col=1)
+        sensors.add_trace(go.Scatter(x=x, y=hist_df["rotational_speed_rpm"],
+                                     name="Speed", line=dict(color=ACCENT, width=1.4),
+                                     showlegend=False),
+                          row=1, col=2)
+        sensors.add_trace(go.Scatter(x=x, y=hist_df["torque_Nm"],
+                                     name="Torque", line=dict(color=WARN, width=1.4),
+                                     showlegend=False),
+                          row=2, col=1)
+        sensors.add_trace(go.Scatter(x=x, y=hist_df["tool_wear_min"],
+                                     name="Wear", line=dict(color=BAD, width=1.4),
+                                     showlegend=False),
+                          row=2, col=2)
+        sensors.update_layout(legend=dict(orientation="h", y=1.12))
+        show_plotly(sensors, height=420)
+
+with table_col:
+    st.subheader("Recent readings")
+    if not hist_df.empty:
+        recent = hist_df.tail(12)[
+            ["health", "failure_probability", "air_temperature_K",
              "process_temperature_K", "rotational_speed_rpm", "torque_Nm", "tool_wear_min"]
-        ].iloc[::-1],
-        use_container_width=True,
-    )
-
-# --- DSS evidence packet -------------------------------------------------------
-st.subheader("Evidence Packet Sent to the DSS")
-st.caption("This compact JSON — not raw telemetry — is what the Decision Support System consumes.")
-st.json(st.session_state.twin.evidence_for_dss())
+        ].iloc[::-1].copy()
+        recent["failure_probability"] = (recent["failure_probability"] * 100).round(2)
+        recent = recent.rename(columns={
+            "health": "Health",
+            "failure_probability": "Fail %",
+            "air_temperature_K": "Air K",
+            "process_temperature_K": "Proc K",
+            "rotational_speed_rpm": "rpm",
+            "torque_Nm": "Nm",
+            "tool_wear_min": "Wear",
+        })
+        st.dataframe(recent, hide_index=True, width="stretch", height=360)
+    st.subheader("Evidence packet")
+    st.caption("Compact JSON consumed by the Decision Support System.")
+    st.json(st.session_state.twin.evidence_for_dss())
 
 # --- Auto-advance loop ---------------------------------------------------------
 if st.session_state.playing and st.session_state.index < total_rows:
