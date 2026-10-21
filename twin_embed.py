@@ -42,8 +42,9 @@ TWINS = {
         "dir": "manufacturing_twin",
         "entry": "dashboard_standalone.py",
         "blurb": (
-            "Machine health monitoring: XGBoost failure prediction on a replayed "
-            "sensor stream, with health status, recommendation and DSS evidence packet."
+            "MetroPT-3 air-compressor anomaly detection: a frozen sparse "
+            "autoencoder scores a replayed sensor stream. Alarms are reconstruction "
+            "errors against a false-alarm budget, not failure predictions."
         ),
     },
     "healthcare": {

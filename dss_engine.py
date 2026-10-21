@@ -136,11 +136,16 @@ def compute_readiness_index(nlp_evidence: NLPEvidence, twin_evidence: dict) -> R
     # NLP macro signal: rescale overall_sentiment from [-1, 1] to [0, 100]
     nlp_component = 50.0 + 50.0 * nlp_evidence.overall_sentiment
 
-    # Twin operational signal: already 0-100 in StandardEvidence
+    # Twin operational signal: 0-100 when that twin actually computes one.
+    # Manufacturing does not. Its anomaly alarm is not rescaled into a
+    # substitute health percentage (see adapt_manufacturing_evidence).
     twin_component = twin_evidence["operational_score"]
 
-    readiness_index = NLP_WEIGHT * nlp_component + TWIN_WEIGHT * twin_component
-    readiness_index = round(max(0.0, min(100.0, readiness_index)), 1)
+    if twin_component is None:
+        readiness_index = round(max(0.0, min(100.0, nlp_component)), 1)
+    else:
+        readiness_index = NLP_WEIGHT * nlp_component + TWIN_WEIGHT * twin_component
+        readiness_index = round(max(0.0, min(100.0, readiness_index)), 1)
 
     if readiness_index >= 75:
         status = "Ready"
@@ -150,10 +155,18 @@ def compute_readiness_index(nlp_evidence: NLPEvidence, twin_evidence: dict) -> R
         status = "At Risk"
 
     explanation = []
-    explanation.append(
-        f"Live twin status is '{twin_evidence['status']}' "
-        f"(operational score {twin_component:.1f}/100, {twin_evidence['score_provenance']})."
-    )
+    if twin_component is None:
+        explanation.append(
+            f"Live twin status is '{twin_evidence['status']}'. "
+            "This twin has no 0–100 operational health score, so it is not "
+            "given the 65% fusion weight. The readiness index is the "
+            "literature/news component only."
+        )
+    else:
+        explanation.append(
+            f"Live twin status is '{twin_evidence['status']}' "
+            f"(operational score {twin_component:.1f}/100, {twin_evidence['score_provenance']})."
+        )
     if twin_evidence["risk_flags"]:
         explanation.append("Twin flags: " + "; ".join(twin_evidence["risk_flags"]))
     sentiment_word = (
@@ -173,7 +186,7 @@ def compute_readiness_index(nlp_evidence: NLPEvidence, twin_evidence: dict) -> R
         explanation.append(
             f"Weakest discourse aspect: '{weakest_aspect[0]}' ({weakest_aspect[1]:+.2f})."
         )
-    if abs(nlp_component - twin_component) > 30:
+    if twin_component is not None and abs(nlp_component - twin_component) > 30:
         explanation.append(
             "Note: literature sentiment and live operational health disagree sharply "
             "for this sector -- worth investigating before trusting either signal alone."
@@ -183,7 +196,7 @@ def compute_readiness_index(nlp_evidence: NLPEvidence, twin_evidence: dict) -> R
         sector=nlp_evidence.sector,
         readiness_index=readiness_index,
         nlp_component=round(nlp_component, 1),
-        twin_component=round(twin_component, 1),
+        twin_component=None if twin_component is None else round(twin_component, 1),
         status=status,
         explanation=explanation,
         nlp_evidence=nlp_evidence,

@@ -24,3 +24,8 @@ Thumbs.db
 
 # Jupyter
 .ipynb_checkpoints/
+
+# MetroPT-3 reference replay (UCI dataset 791, ~200 MB). Not training data.
+manufacturing_twin/data/MetroPT3*.csv
+manufacturing_twin/data/*.zip
+manufacturing_twin/data/*.pdf
