@@ -19,9 +19,9 @@ dss_project/
 ├── master_nlp_aspects.csv <- your NLP pipeline's aspect-sentiment output
 ├── requirements.txt
 ├── manufacturing_twin/    <- trimmed copy of manufacturing_twin (no venv/)
-│   ├── predictor.py, twin.py, stream.py, dashboard_standalone.py, ...
-│   ├── models/            <- the actual trained XGBoost model + encoders
-│   └── data/live_machine_stream.csv
+│   ├── twin.py, stream.py, dashboard_standalone.py, dt/ ...
+│   ├── models/metropt3_sae/  <- frozen sparse autoencoder, scaler, thresholds
+│   └── data/               <- place MetroPT3_AirCompressor_.csv here (not in git)
 ├── healthcare_twin/        <- full copy of twin_app
 │   ├── app.py, config.py, digital_twin.py, dss_interface.py, ...
 │   └── data/ (PMC_Hospital_Infrastructure.csv, dataset3.csv)
@@ -40,8 +40,10 @@ matching path in `TWIN_DIRS` instead of moving files back.
 One thing I *did* trim: the manufacturing twin's original zip included a full
 Python `venv/` (~245 MB) bundled inside it. That's your local virtual
 environment, not project code — it doesn't travel with the project and isn't
-included here. Everything the twin actually needs to run (`predictor.py`,
-`twin.py`, `stream.py`, the trained model files, the sensor CSV) is included.
+included here. The manufacturing twin now scores the MetroPT-3 air
+compressor with a frozen sparse autoencoder. Model artifacts are in
+`manufacturing_twin/models/metropt3_sae/`. The MetroPT-3 CSV is a separate
+download (UCI dataset 791) and is gitignored.
 
 ## 1. Install dependencies
 
@@ -55,7 +57,12 @@ pip install -r requirements.txt
 ```
 
 This installs pandas, numpy, scikit-learn, xgboost, joblib, streamlit and
-plotly (the twin dashboards need plotly).
+plotly (the twin dashboards need plotly). Install the CPU build of PyTorch
+first, so the manufacturing autoencoder does not pull a CUDA wheel:
+
+```bash
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+```
 
 ## 2. Run the unified dashboard
 
@@ -73,13 +80,15 @@ dashboard:
 | **Healthcare Twin** | The healthcare twin's own full dashboard (`healthcare_twin/app.py`) |
 | **Retail Twin** | The retail twin's own full dashboard (`retail_twin/app.py`) |
 
-The twin pages run each twin's original `app.py` unchanged, so they behave
-exactly as they do standalone. See `twin_embed.py` for how they are isolated
-from each other (working directory, module names, page config).
+The twin pages run each twin's own Streamlit script. See `twin_embed.py`
+for how they are isolated from each other (working directory, module names,
+page config). The manufacturing page is the MetroPT-3 anomaly-alarm replay.
 
 On the DSS Overview page, first load will:
-1. Run the manufacturing twin against `data/live_machine_stream.csv` using
-   the real trained XGBoost model
+1. Run the manufacturing twin on a MetroPT-3 window (2020-06-04 to
+   2020-06-05 12:00 by default) with the frozen sparse autoencoder. The
+   packet is an anomaly alarm, not a failure probability. The sector
+   readiness number uses the literature/news component only.
 2. Run the healthcare twin's simulation for the default facility (Kamla
    Nehru Hospital) across the LOW/BASE/HIGH presets
 3. Run the retail twin's simulation for a sample network (3 stores × 10
@@ -116,8 +125,10 @@ add that key to `_SHARED_STATE_KEYS` in `twin_embed.py`.
 - **A different retail scenario**: `run_retail_twin(twin_dir, scenario_name=...,
   demand_pct=..., lead_time_delta=...)` — same presets as `retail_twin/app.py`'s
   sidebar (Demand Surge, Supply Disruption, Combined Disruption, or Custom).
-- **A different machine / longer replay**: `run_manufacturing_twin(twin_dir,
-  machine_id=..., n_readings=...)`.
+- **A shorter manufacturing replay**: `run_manufacturing_twin(twin_dir,
+  machine_id=..., n_readings=...)`. The default window is the reported E3
+  interval's lead-in. Reported event times are dataset labels, not verified
+  onsets.
 - **Updated NLP results**: just overwrite `master_nlp_aspects.csv` with a
   fresh run of your `aspect_sentiment.py` pipeline — `dss_engine.py` re-reads
   it fresh on every dashboard run (nothing is cached across files).

@@ -108,11 +108,24 @@ ui_theme.inject()
 SCORE_PROVENANCE_LABELS = {
     "twin": "TWIN-COMPUTED",
     "dss_derived": "DSS_DERIVED",
+    "unavailable": "NOT COMPUTED",
 }
 SCORE_PROVENANCE_COLORS = {
     "twin": ACCENT,
     "dss_derived": ui_theme.INK,
 }
+
+
+def _fmt_score(value) -> str:
+    if value is None:
+        return "n/a"
+    return f"{float(value):.1f}"
+
+
+def _bar_score(value):
+    if value is None:
+        return float("nan")
+    return float(value)
 
 
 def score_prov_tag(value):
@@ -225,7 +238,11 @@ if results:
                 f'{pill(result.status, STATUS_COLORS)}'
                 f'<div style="margin-top:10px;font-size:0.85rem;color:#5C6B7A;">'
                 f'Twin {pill(result.twin_evidence["status"], STATUS_COLORS)}'
-                f'</div></div>',
+                + (
+                    "<br>Readiness number is the literature/news component. The twin reports an anomaly alarm separately."
+                    if result.twin_component is None else ""
+                )
+                + "</div></div>",
                 unsafe_allow_html=True,
             )
 
@@ -259,7 +276,7 @@ if results:
         fig.add_trace(go.Bar(
             name="Twin component (65%)",
             x=[SECTOR_LABELS[s] for s in results],
-            y=[results[s].twin_component for s in results],
+            y=[_bar_score(results[s].twin_component) for s in results],
             marker_color=ACCENT,
         ))
         fig.update_layout(barmode="group", title="Fusion components",
@@ -290,15 +307,15 @@ if results:
         )
         st.markdown(f"- NLP component: **{d['nlp_component']:.1f}** "
                     f"{prov_tag(d['provenance']['nlp_component'])}", unsafe_allow_html=True)
-        st.markdown(f"- Twin component: **{d['twin_component']:.1f}** "
+        st.markdown(f"- Twin component: **{_fmt_score(d['twin_component'])}** "
                     f"{score_prov_tag(d['provenance']['twin_component'])}",
                     unsafe_allow_html=True)
 
         fuse_fig = go.Figure(go.Bar(
             x=["NLP", "Twin", "Readiness"],
-            y=[d["nlp_component"], d["twin_component"], d["readiness_index"]],
+            y=[d["nlp_component"], _bar_score(d["twin_component"]), d["readiness_index"]],
             marker_color=[NAVY, ACCENT, SECTOR_COLORS[sector]],
-            text=[f"{d['nlp_component']:.1f}", f"{d['twin_component']:.1f}",
+            text=[f"{d['nlp_component']:.1f}", _fmt_score(d["twin_component"]),
                   f"{d['readiness_index']:.1f}"],
             textposition="outside",
         ))
@@ -341,7 +358,7 @@ if results:
     twin = d["twin_evidence"]
     st.markdown(
         f'Entity: **{twin["entity"]}** — status {pill(twin["status"], STATUS_COLORS)} '
-        f'(score {twin["operational_score"]}, {score_prov_tag(twin["score_provenance"])})',
+        f'(score {_fmt_score(twin["operational_score"])}, {score_prov_tag(twin["score_provenance"])})',
         unsafe_allow_html=True,
     )
     if twin["risk_flags"]:
