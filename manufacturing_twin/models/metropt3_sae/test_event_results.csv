@@ -1,0 +1,10 @@
+budget,event_id,detected,n_alarm_episodes,n_valid_rows,flagged_rows,row_recall_in_interval,observed_time_fraction,largest_gap_inside_s,first_alarm_time,minutes_from_REPORTED_start_to_first_alarm,maintenance_notes,delay_caveat
+0.5,E2,False,0,2366,0,0.0,1.0,0.0,,,Maintenance on 30Apr at 12:00,reported start is not verified fault onset
+0.5,E3,True,16,17137,89,0.005193441092373227,0.9077,13622.0,2020-06-05 10:17:54,17.9,Maintenance on 8Jun at 16:00,reported start is not verified fault onset
+0.5,E4,False,0,1538,0,0.0,0.9915,139.0,,,Maintenance on 16Jul at 00:00,reported start is not verified fault onset
+1.0,E2,False,0,2366,0,0.0,1.0,0.0,,,Maintenance on 30Apr at 12:00,reported start is not verified fault onset
+1.0,E3,True,4,17137,3475,0.20277761568535915,0.9077,13622.0,2020-06-05 10:00:04,0.06666666666666667,Maintenance on 8Jun at 16:00,reported start is not verified fault onset
+1.0,E4,False,0,1538,0,0.0,0.9915,139.0,,,Maintenance on 16Jul at 00:00,reported start is not verified fault onset
+2.0,E2,True,1,2366,2068,0.8740490278951818,1.0,0.0,2020-05-29 23:30:08,0.13333333333333333,Maintenance on 30Apr at 12:00,reported start is not verified fault onset
+2.0,E3,True,3,17137,15077,0.879792262356305,0.9077,13622.0,2020-06-05 10:00:04,0.06666666666666667,Maintenance on 8Jun at 16:00,reported start is not verified fault onset
+2.0,E4,False,0,1538,0,0.0,0.9915,139.0,,,Maintenance on 16Jul at 00:00,reported start is not verified fault onset

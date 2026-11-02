@@ -1,13 +1,7 @@
 """
-check_environment.py
+Check that the MetroPT-3 SAE artifacts load and the checksum manifest matches.
 
-Run this FIRST, before `streamlit run dashboard.py`, whenever you set up
-a new venv or move the project to a new machine. It isolates the model
-loading step from everything else, so a version mismatch or a bad file
-shows up immediately with a clear message instead of buried in a
-Streamlit traceback.
-
-Usage:
+Usage (from manufacturing_twin/):
     python check_environment.py
 """
 
@@ -17,80 +11,40 @@ from pathlib import Path
 print("Python:", sys.version)
 
 try:
-    import xgboost
-    print("xgboost:", xgboost.__version__, "(trained with 3.3.0, but any recent version reads the .json model fine)")
+    import torch
+    print("torch:", torch.__version__)
 except ImportError:
-    print("xgboost is NOT installed. Run: pip install -r requirements.txt")
+    print("torch is NOT installed. From the repo root:")
+    print("  pip install torch --index-url https://download.pytorch.org/whl/cpu")
     sys.exit(1)
 
 try:
-    import sklearn
-    print("scikit-learn:", sklearn.__version__, "(model was trained with 1.6.1)")
-except ImportError:
-    print("scikit-learn is NOT installed.")
+    import numpy as np
+    import pandas as pd
+    print("pandas:", pd.__version__)
+    print("numpy:", np.__version__)
+except ImportError as exc:
+    print("pandas/numpy missing:", exc)
     sys.exit(1)
 
-import joblib
-print("joblib:", joblib.__version__)
+TWIN = Path(__file__).resolve().parent
+if str(TWIN) not in sys.path:
+    sys.path.insert(0, str(TWIN))
 
-MODEL_DIR = Path(__file__).resolve().parent / "models"
+from dt.models.metropt3_sae import PRIMARY_BUDGET, MetroSAEDetector
 
-# machine_failure_xgboost.json is the file the app actually loads (via
-# XGBoost's own portable format). The .pkl is only kept around as an
-# archival/backward-compat artifact from the training notebook, so its
-# absence is a warning, not a fatal error.
-print("\nChecking file sizes...")
-for fname in ["machine_failure_xgboost.json", "label_encoder.pkl", "feature_columns.pkl"]:
-    path = MODEL_DIR / fname
-    if not path.exists():
-        print(f"  MISSING: {fname}")
-        continue
-    print(f"  {fname}: {path.stat().st_size} bytes")
-
-pkl_path = MODEL_DIR / "machine_failure_xgboost.pkl"
-if pkl_path.exists():
-    print(f"  machine_failure_xgboost.pkl: {pkl_path.stat().st_size} bytes (unused by the app, kept for archival)")
-else:
-    print("  machine_failure_xgboost.pkl: not present (fine — the app doesn't need it)")
-
-print("\nAttempting to load each artifact...")
+print("\nLoading SAE (checksums must match MANIFEST.sha256)...")
 try:
-    fc = joblib.load(MODEL_DIR / "feature_columns.pkl")
-    print("  feature_columns.pkl -> OK:", fc)
-except Exception as e:
-    print("  feature_columns.pkl -> FAILED:", type(e).__name__, e)
-
-try:
-    le = joblib.load(MODEL_DIR / "label_encoder.pkl")
-    print("  label_encoder.pkl -> OK, classes:", list(le.classes_))
-except Exception as e:
-    print("  label_encoder.pkl -> FAILED:", type(e).__name__, e)
-
-try:
-    from xgboost import XGBClassifier
-    model = XGBClassifier()
-    model.load_model(MODEL_DIR / "machine_failure_xgboost.json")
-    print("  machine_failure_xgboost.json -> OK:", type(model))
-except Exception as e:
-    print("  machine_failure_xgboost.json -> FAILED:", type(e).__name__, e)
-    print("\n  This format doesn't carry a version tag the way the old .pkl did,")
-    print("  so a failure here is more likely a missing/corrupted file than a")
-    print("  version mismatch. Re-export it from the training notebook with")
-    print("  best_model.save_model('machine_failure_xgboost.json') and re-copy")
-    print("  it into the models/ folder.")
+    detector = MetroSAEDetector.load()
+except (OSError, ValueError, RuntimeError, KeyError, TypeError) as exc:
+    print("FAILED:", type(exc).__name__, exc)
     sys.exit(1)
 
-print("\nRunning a test prediction...")
-import pandas as pd
-sample = {
-    "Type": 1,
-    "Air temperature K": 298.4,
-    "Process temperature K": 308.7,
-    "Rotational speed rpm": 1500,
-    "Torque Nm": 45.0,
-    "Tool wear min": 120,
-}
-X = pd.DataFrame([sample])[fc]
-proba = model.predict_proba(X)[0, 1]
-print(f"  Test prediction succeeded. Failure probability: {proba:.4f}")
-print("\nEverything checks out — safe to run: streamlit run dashboard.py")
+print("  features:", len(detector.feature_names))
+print("  primary budget", PRIMARY_BUDGET, "threshold", detector.threshold(PRIMARY_BUDGET))
+print("  device: cpu, eval mode")
+sample = pd.DataFrame([detector.mean], columns=detector.feature_names)
+score = float(detector.score(sample)[0])
+print(f"  score at the training mean vector: {score:.6g}")
+print("\nArtifacts loaded. Replay still needs MetroPT-3 CSV in data/.")
+print("Dashboard: streamlit run dashboard_standalone.py")

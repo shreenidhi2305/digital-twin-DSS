@@ -1,5 +1,7 @@
-pandas
-scikit-learn==1.6.1
-xgboost==3.3.0
-joblib
-streamlit
+pandas>=2.0
+numpy>=1.24
+streamlit>=1.38
+
+# CPU build of PyTorch. Install it before this file, from the CPU index:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+torch>=2.2

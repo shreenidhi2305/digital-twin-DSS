@@ -51,39 +51,56 @@ def _isolated_path(twin_dir: Path, module_names):
 # ---------------------------------------------------------------------------
 # Manufacturing
 # ---------------------------------------------------------------------------
-def run_manufacturing_twin(twin_dir, machine_id: str = "CNC-01", n_readings: int = None) -> dict:
+def run_manufacturing_twin(twin_dir, machine_id: str = "APU-01", n_readings: int = None) -> dict:
     """
-    Replays manufacturing_twin's live_machine_stream.csv through the real
-    predictor.py (loads machine_failure_xgboost.json, the actual trained
-    XGBoost model) and twin.py's MachineTwin, exactly as dashboard.py does.
+    Scores a MetroPT-3 replay window with the frozen sparse autoencoder.
 
-    Returns the twin's native evidence_for_dss() dict for the LAST reading
-    replayed (i.e. current state) -- pass n_readings to stop early, or leave
-    None to replay the whole stream and report the final state.
+    The default window is 2020-06-04 00:00 through 2020-06-05 12:00, which
+    covers the warmup before reported event E3 and ends during that reported
+    interval. E3's start time is the dataset's reported time, not a verified
+    fault onset. The returned packet is the last scored bin, not a failure
+    probability.
+
+    n_readings, when set, caps how many raw CSV rows are loaded.
     """
     twin_dir = Path(twin_dir)
-    required = ["stream.py", "twin.py", "predictor.py",
-                "models/machine_failure_xgboost.json",
-                "models/label_encoder.pkl", "models/feature_columns.pkl",
-                "data/live_machine_stream.csv"]
+    required = [
+        "stream.py", "twin.py",
+        "dt/models/metropt3_sae.py", "dt/features/metropt3.py",
+        "models/metropt3_sae/sae_model_state.pt",
+        "models/metropt3_sae/MANIFEST.sha256",
+        "models/metropt3_sae/scaler.json",
+        "models/metropt3_sae/feature_names.json",
+        "models/metropt3_sae/thresholds.json",
+    ]
     missing = [f for f in required if not (twin_dir / f).exists()]
     if missing:
         raise FileNotFoundError(f"Manufacturing twin directory {twin_dir} is missing: {missing}")
 
-    module_names = ["predictor", "twin", "stream"]
+    module_names = ["stream", "twin", "dt", "dt.models", "dt.models.metropt3_sae",
+                    "dt.features", "dt.features.metropt3", "dt.episodes"]
     with _isolated_path(twin_dir, module_names):
         for name in module_names:
             sys.modules.pop(name, None)
         import stream
         import twin as twin_module
 
+        raw = stream.load_window(
+            start="2020-06-04 00:00:00",
+            end="2020-06-05 12:00:00",
+            max_rows=n_readings,
+        )
+        if raw.empty:
+            raw = stream.load_window(max_rows=n_readings or 20_000)
         machine_twin = twin_module.MachineTwin(machine_id)
-        for i, reading in enumerate(stream.replay(delay=0)):
-            machine_twin.update(reading)
-            if n_readings is not None and i + 1 >= n_readings:
-                break
-
-        return machine_twin.evidence_for_dss()
+        machine_twin.replay_frame(raw)
+        packet = machine_twin.evidence_for_dss()
+        if not packet:
+            raise RuntimeError(
+                "Manufacturing replay produced no scored bins. "
+                "The CSV window may be empty or shorter than one 10 s sample."
+            )
+        return packet
 
 
 # ---------------------------------------------------------------------------

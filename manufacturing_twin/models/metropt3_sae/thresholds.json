@@ -1,0 +1,60 @@
+{
+ "frozen_before_test": true,
+ "created": "2026-10-10 02:21:31",
+ "selection_rule": "lowest grid threshold with merged-episode rate <= budget per OBSERVED day on presumed-normal validation rows, for it and all larger grid values",
+ "merge_minutes": 30,
+ "grid_points": 1733,
+ "val_observed_days": 28.977685185185184,
+ "thresholds": {
+  "0.5": {
+   "budget_per_day": 0.5,
+   "threshold": 0.03102650587912644,
+   "val_episodes": 6,
+   "val_rate_per_obs_day": 0.2070558763288482,
+   "val_alarm_rows": 6526,
+   "val_rate_first_half": 0.14849902547514532,
+   "val_rate_second_half": 0.2579069833390298,
+   "flags": []
+  },
+  "1.0": {
+   "budget_per_day": 1.0,
+   "threshold": 0.023753321729600516,
+   "val_episodes": 28,
+   "val_rate_per_obs_day": 0.9662607562012916,
+   "val_alarm_rows": 6713,
+   "val_rate_first_half": 0.22274853821271798,
+   "val_rate_second_half": 1.611918645868936,
+   "flags": []
+  },
+  "2.0": {
+   "budget_per_day": 2.0,
+   "threshold": 0.004674700331292203,
+   "val_episodes": 48,
+   "val_rate_per_obs_day": 1.6564470106307856,
+   "val_alarm_rows": 19329,
+   "val_rate_first_half": 1.3364912292763078,
+   "val_rate_second_half": 1.9343023750427233,
+   "flags": []
+  }
+ },
+ "e1_sensitivity_not_used_for_selection": {
+  "0.5": {
+   "detected": true,
+   "n_valid_rows": 8574,
+   "flagged_rows": 20,
+   "episodes": 1
+  },
+  "1.0": {
+   "detected": true,
+   "n_valid_rows": 8574,
+   "flagged_rows": 20,
+   "episodes": 1
+  },
+  "2.0": {
+   "detected": true,
+   "n_valid_rows": 8574,
+   "flagged_rows": 2915,
+   "episodes": 2
+  }
+ }
+}

@@ -1,0 +1,155 @@
+{
+ "config": {
+  "seed": 42,
+  "model_features": [
+   "TP2",
+   "TP3",
+   "H1",
+   "DV_pressure",
+   "Oil_temperature",
+   "Motor_current",
+   "COMP",
+   "DV_eletric",
+   "tp3_minus_h1",
+   "d_TP3_per_s",
+   "load_duty_30m",
+   "TP2_mean_5m",
+   "TP2_std_5m",
+   "TP3_mean_5m",
+   "TP3_std_5m",
+   "H1_mean_5m",
+   "H1_std_5m",
+   "DV_pressure_mean_5m",
+   "DV_pressure_std_5m",
+   "Oil_temperature_mean_5m",
+   "Oil_temperature_std_5m",
+   "Motor_current_mean_5m",
+   "Motor_current_std_5m"
+  ],
+  "hidden_dim": 64,
+  "sparsity": "L1 on post-ReLU hidden activations, mean-normalised over batch and hidden units",
+  "sparsity_lambda": 0.01,
+  "lr": 0.001,
+  "batch_size": 512,
+  "max_epochs": 100,
+  "patience": 10,
+  "min_delta": 1e-05,
+  "active_eps": 0.001,
+  "budgets": [
+   0.5,
+   1.0,
+   2.0
+  ],
+  "primary_budget": 1.0,
+  "merge_minutes": 30,
+  "segment_gap_s": 30,
+  "grid_points": 2001,
+  "min_val_obs_days": 14,
+  "min_allowed_episodes": 10,
+  "min_train_rows": 100000
+ },
+ "excluded_columns": {
+  "timestamp, source_index, segment_id": "identifiers / provenance, not signals",
+  "event_id, label_class, split, presumed_normal": "evaluation-only fields (live in eval_index.parquet, not in the feature table)",
+  "op_state": "derived from Motor_current/COMP (assumed definition), redundant with COMP & Motor_current; no state-specific models are fitted",
+  "Reservoirs, res_minus_tp3": "duplicate of TP3 (r=1.000); diagnostic only",
+  "Towers, MPG, LPS, Pressure_switch, Oil_level, Caudal_impulses": "binary context signals excluded for simplicity; not evidence they are uninformative (Oil_level is active in ~9.6% of rows, unexplained)",
+  "feat_valid": "row-eligibility flag, not an input"
+ },
+ "best_epoch": 24,
+ "device": "cpu",
+ "seed": 42,
+ "architecture": "Linear(23,64) -> ReLU -> Linear(64,23)",
+ "loss": "MSE_recon + lambda * mean(|h|)",
+ "lambda_": 0.01,
+ "versions": {
+  "python": "3.13.16",
+  "torch": "2.11.0+cpu",
+  "numpy": "2.1.3",
+  "pandas": "2.2.3"
+ },
+ "nondeterminism": "seeded + deterministic algorithms requested (warn_only); GPU float non-associativity can still change results slightly across hardware/versions",
+ "split_record": {
+  "manifest": {
+   "test": {
+    "start": "2020-05-29 00:00:01",
+    "end": "2020-09-01 03:59:50",
+    "n_rows": 683493,
+    "observed_hours": 1898.0,
+    "rows_by_class": {
+     "outside_unverified": 622816,
+     "buffer_excluded": 39369,
+     "in_reported_interval": 21308
+    },
+    "presumed_normal_valid_rows": 620884,
+    "presumed_normal_observed_hours": 1726.0,
+    "events_in_period": [
+     "E2",
+     "E3",
+     "E4"
+    ],
+    "allowed_false_alarm_episodes_by_budget": {
+     "0.5": 36.0,
+     "1.0": 71.9,
+     "2.0": 143.8
+    }
+   },
+   "train": {
+    "start": "2020-02-01 00:00:00",
+    "end": "2020-04-17 23:59:49",
+    "n_rows": 562564,
+    "observed_hours": 1551.6,
+    "rows_by_class": {
+     "outside_unverified": 556263,
+     "buffer_excluded": 6301
+    },
+    "presumed_normal_valid_rows": 554709,
+    "presumed_normal_observed_hours": 1527.7,
+    "events_in_period": [],
+    "allowed_false_alarm_episodes_by_budget": {
+     "0.5": 31.8,
+     "1.0": 63.7,
+     "2.0": 127.3
+    }
+   },
+   "validation": {
+    "start": "2020-04-18 00:00:01",
+    "end": "2020-05-28 23:59:51",
+    "n_rows": 270891,
+    "observed_hours": 756.9,
+    "rows_by_class": {
+     "outside_unverified": 253492,
+     "buffer_excluded": 8736,
+     "in_reported_interval": 8663
+    },
+    "presumed_normal_valid_rows": 252610,
+    "presumed_normal_observed_hours": 706.7,
+    "events_in_period": [
+     "E1"
+    ],
+    "allowed_false_alarm_episodes_by_budget": {
+     "0.5": 14.7,
+     "1.0": 29.4,
+     "2.0": 58.9
+    }
+   },
+   "_assumptions": {
+    "buffer_h": 24,
+    "post_buffer": "max(end+24h, parsed maintenance time)",
+    "budget_per_day": 1.0,
+    "alarm_merge_min": 30,
+    "threshold_rule": "smallest threshold whose alarm episodes/day on validation presumed-normal rows <= budget; E1 sensitivity only; test events never used",
+    "leakage_note": "features are trailing-only so train-tail data may inform val-start features (past only); no embargo needed for trailing windows, but evaluate windows must not be shuffled"
+   }
+  },
+  "input_sha256": {
+   "data/features.parquet": "877d440fa884a330bf3ca6adec803d22f1cc32518c6e055ba32c3cb6d3bc131e",
+   "data/eval_index.parquet": "a8597a718b49615737ee19a323bce0cb4f46c669452e7d07b94c3fd20b5758d5",
+   "data/sensors_clean.parquet": "8a121de5bf90527b2ef51d1e29dffa51a68da746f7de2b1e3ab4980b4f746093",
+   "data/failure_events.csv": "223dcfbef0d3e36697ae058afa9a577fd2c2b87c9d02046aab896fd5995faff6"
+  }
+ },
+ "model_valid_rows": 1490230,
+ "train_fit_rows": 547296,
+ "val_fit_rows": 248594
+}

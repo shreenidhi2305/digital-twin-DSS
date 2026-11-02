@@ -46,7 +46,7 @@ DataFrame / feed to a template):
 
 {
     "domain":            "manufacturing" | "healthcare" | "business",
-    "entity":            str   -- e.g. "CNC-01", "Kamla Nehru Hospital", "retail_network"
+    "entity":            str   -- e.g. "APU-01", "Kamla Nehru Hospital", "retail_network"
     "generated_at":      ISO-8601 str
     "status":            "Healthy" | "Warning" | "Critical"   -- 3-tier, common across domains
     "operational_score":  float 0-100, higher = healthier      -- DSS-derived if the twin
@@ -83,6 +83,13 @@ def _standard(domain, entity, status, operational_score, score_provenance,
               risk_flags, recommendation, key_metrics, raw_evidence, provenance):
     if status not in STATUS_LEVELS:
         raise ValueError(f"status must be one of {STATUS_LEVELS}, got {status!r}")
+    if score_provenance not in ("twin", "dss_derived", "unavailable"):
+        raise ValueError(
+            "score_provenance must be 'twin', 'dss_derived', or 'unavailable', "
+            f"got {score_provenance!r}"
+        )
+    if operational_score is not None:
+        operational_score = round(float(operational_score), 1)
     bad_tags = {k: v for k, v in provenance.items() if v not in PROVENANCE_LEVELS}
     if bad_tags:
         raise ValueError(f"Unknown provenance tag(s): {bad_tags}; must be one of {PROVENANCE_LEVELS}")
@@ -94,7 +101,7 @@ def _standard(domain, entity, status, operational_score, score_provenance,
         "entity": entity,
         "generated_at": _now(),
         "status": status,
-        "operational_score": round(float(operational_score), 1),
+        "operational_score": operational_score,
         "score_provenance": score_provenance,
         "risk_flags": risk_flags,
         "recommendation": recommendation,
@@ -105,52 +112,64 @@ def _standard(domain, entity, status, operational_score, score_provenance,
 
 
 # ---------------------------------------------------------------------------
-# Manufacturing — from manufacturing_twin/twin.py: MachineTwin.evidence_for_dss()
+# Manufacturing — MetroPT-3 sparse autoencoder (anomaly detection).
 #
-# Native shape:
-# {
-#   "domain": "Manufacturing", "machine": "CNC-01", "health": "Healthy"|"Warning"|"Critical",
-#   "failure_probability": float, "tool_wear": int, "recommendation": str
-# }
-#
-# Already has a 3-tier status and an explicit recommendation, so this adapter
-# mostly relabels fields and derives operational_score from failure_probability
-# (score_provenance = "twin", since the underlying number — failure_probability —
-# is the twin's own model output; we're just rescaling it to 0-100).
+# The twin reports a reconstruction-error alarm. It does not produce a
+# failure probability, a remaining useful life, or a 0–100 health score.
+# operational_score is left empty on purpose: rescaling the MSE, or mapping
+# the alarm to 0/100, would invent a substitute for the removed KPI.
 # ---------------------------------------------------------------------------
 def adapt_manufacturing_evidence(evidence: dict) -> dict:
     if not evidence:
         raise ValueError("Empty manufacturing evidence — has the twin been update()'d yet?")
 
-    health = evidence["health"]
-    failure_prob = evidence["failure_probability"]
-    tool_wear = evidence.get("tool_wear")
-
-    operational_score = 100.0 * (1.0 - failure_prob)
+    alarm = bool(evidence["alarm"])
+    quality = list(evidence.get("data_quality") or [])
+    score = evidence.get("anomaly_score")
+    if score is None or quality:
+        status = "Warning" if not alarm else "Critical"
+    else:
+        status = "Critical" if alarm else "Healthy"
 
     risk_flags = []
-    if health != "Healthy":
-        risk_flags.append(f"Failure probability {failure_prob:.0%} ({health})")
-    if tool_wear is not None and tool_wear > 200:
-        risk_flags.append(f"Tool wear elevated ({tool_wear} min)")
+    if alarm:
+        risk_flags.append(
+            "Anomaly alarm: reconstruction error is at or above the frozen "
+            f"threshold for budget {evidence.get('budget')} episodes/day. "
+            "This is not a failure prediction."
+        )
+    if evidence.get("model_may_be_drifting"):
+        risk_flags.append(
+            "Model may be drifting: the rolling alarm rate over 7 days exceeds "
+            "twice the selected budget."
+        )
+    for flag in quality:
+        risk_flags.append(f"Data quality: {flag}")
 
+    episode = evidence.get("active_episode") or {}
     return _standard(
         domain="manufacturing",
-        entity=evidence.get("machine", "unknown_machine"),
-        status=health,
-        operational_score=operational_score,
-        score_provenance="twin",
+        entity=evidence.get("machine", "APU-01"),
+        status=status,
+        operational_score=None,
+        score_provenance="unavailable",
         risk_flags=risk_flags,
         recommendation=evidence["recommendation"],
         key_metrics={
-            "failure_probability": failure_prob,
-            "tool_wear_min": tool_wear,
+            "anomaly_score": score,
+            "threshold": evidence["threshold"],
+            "alarm": alarm,
+            "budget_episodes_per_day": float(evidence["budget"]),
+            "operating_state": evidence.get("operating_state"),
+            "active_episode_start": episode.get("start"),
         },
         provenance={
-            # failure_probability is the trained XGBClassifier's own output
-            "failure_probability": "PREDICTED",
-            # tool_wear is a raw sensor reading, passed through unmodified
-            "tool_wear_min": "OBSERVED",
+            "anomaly_score": "PREDICTED",
+            "threshold": "CALIBRATED",
+            "alarm": "PREDICTED",
+            "budget_episodes_per_day": "ASSUMED",
+            "operating_state": "CALIBRATED",
+            "active_episode_start": "PREDICTED",
         },
         raw_evidence=evidence,
     )
