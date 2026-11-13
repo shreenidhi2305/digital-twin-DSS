@@ -1,0 +1,6 @@
+# SHA-256 checks in MANIFEST.sha256 are over exact bytes. Keep LF on every OS
+# so core.autocrlf cannot rewrite these artifacts on checkout.
+manufacturing_twin/models/metropt3_sae/*.csv text eol=lf
+manufacturing_twin/models/metropt3_sae/*.json text eol=lf
+manufacturing_twin/models/metropt3_sae/*.sha256 text eol=lf
+manufacturing_twin/models/metropt3_sae/*.pt binary
