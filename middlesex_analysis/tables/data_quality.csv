@@ -1,0 +1,6 @@
+column,rows,usable,usable_pct,missing,missing_pct,suppressed,suppressed_pct,coverage_mean,coverage_eq_7,coverage_eq_7_pct,coverage_eq_0,coverage_min,coverage_max
+inpatient_beds_7_day_avg,215,212,98.6,3,1.4,0,0.0,6.81,204,94.88,3,0,7
+inpatient_beds_used_7_day_avg,215,212,98.6,3,1.4,0,0.0,6.81,204,94.88,3,0,7
+previous_day_admission_adult_covid_confirmed_7_day_sum,215,186,86.51,17,7.91,12,5.58,6.38,192,89.3,17,0,7
+total_icu_beds_7_day_avg,215,215,100.0,0,0.0,0,0.0,6.93,207,96.28,0,3,7
+icu_beds_used_7_day_avg,215,198,92.09,17,7.91,0,0.0,6.35,191,88.84,17,0,7

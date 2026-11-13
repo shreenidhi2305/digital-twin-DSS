@@ -1,0 +1,21 @@
+,value
+hospital_name,MIDDLESEX HOSPITAL
+hospital_pk_stored,70020
+ccn_stored,70020
+ccn_with_leading_zero,070020
+rows,215
+first_week,2020-03-15
+last_week,2024-04-21
+internal_gaps,0
+corrected_weeks,9
+occ_2020,85.1155151194465
+occ_2023,83.20280650096022
+occ_2024,66.46220103458288
+beds_2020,192.62051282051283
+beds_2023,181.5698113207547
+beds_2024,220.0625
+used_2020,160.32564102564103
+used_2023,148.5622641509434
+used_2024,146.2625
+occ_2024_if_only_occupied_changed_from_2023,84.13690476190476
+occ_2024_if_only_capacity_changed_from_2023,69.01225203321464
